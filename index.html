@@ -843,12 +843,23 @@
       sets: day ? day.sets : 0,
       updated: +p.t || Date.now()
     };
-    if (day && day.updated > incoming.updated){
-      return "stale"; // 이 기기에 더 최신 기록이 있음 → 덮어쓰지 않음
+    if (day && dayHasContent(day) && day.updated > incoming.updated){
+      return "stale"; // 이 기기에 더 최신 '내용'이 있음 → 덮어쓰지 않음
+    }
+    if (day){
+      // 한마디·피드백은 각각 더 최근에 쓴 쪽을 남긴다
+      if ((day.kidTs||0) > incoming.kidTs){ incoming.kid = day.kid; incoming.kidTs = day.kidTs; }
+      if ((day.momTs||0) > incoming.momTs){ incoming.mom = day.mom; incoming.momTs = day.momTs; }
+      incoming.sets = Math.max(day.sets||0, incoming.sets||0);
     }
     store.days[p.d] = incoming;
     saveStore();
     return true;
+  }
+  function dayHasContent(d){
+    return !!d && (d.items.some(function(i){ return i.done; }) ||
+                   (d.kid||"").trim() !== "" || (d.mom||"").trim() !== "" ||
+                   (d.sets||0) > 0);
   }
   function kakaoText(){
     var d = getDay(viewDate, true);
@@ -1195,18 +1206,23 @@
     if (!m) return null;
     try { return JSON.parse(b64decode(m[1])); } catch(e){ return null; }
   }
-  function initFromHash(){
-    var p = readHash();
+  function importShared(p){
     if (!p) return;
     var res = applyPayload(p);
+    if (p.d) viewDate = p.d;
     if (res === "stale"){
       showBanner("📩 공유 링크를 열었지만, 이 기기에 <b>더 최신 기록</b>이 있어서 내 기록을 그대로 뒀어요.");
-      if (p.d) viewDate = p.d;
     } else if (res === true){
-      if (p.d) viewDate = p.d;
       showBanner("📩 <b>" + prettyDate(p.d) + "</b> 기록을 링크에서 불러왔어요. 이 기기에도 저장했어요.");
     }
     try { history.replaceState(null, "", location.pathname + location.search); } catch(e){}
+    renderAll();
+  }
+  function initFromHash(){
+    importShared(readHash());
+  }
+  function bindHashChange(){
+    window.addEventListener("hashchange", function(){ importShared(readHash()); });
   }
 
   /* ================= render all ================= */
@@ -1267,6 +1283,7 @@
     loadTimer();
     ensureAudio(); // iOS 대비: 첫 터치 때 resume
     initFromHash();
+    bindHashChange();
     bindTabs();
     bindTimer();
     bindFeedback();
