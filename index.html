@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ko" data-app-ver="2026-11-15-v3">
+<html lang="ko" data-app-ver="2026-11-15-v4">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -79,6 +79,41 @@
     transition:background .18s, color .18s, box-shadow .18s;
   }
   .tab.on{background:#fff;color:#B4695A;box-shadow:0 1px 5px rgba(150,110,80,.13);}
+
+  /* ---------- weekday chips ---------- */
+  .daybar{
+    display:flex;gap:4px;background:#F6EBE0;border-radius:16px;padding:4px;margin:0 0 12px;
+    box-shadow:var(--shadow);
+  }
+  .dchip{
+    flex:1;min-width:0;border:0;background:transparent;color:#8B7A6C;font-family:inherit;font-weight:800;
+    border-radius:12px;padding:6px 0 4px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:1px;
+    transition:background .18s,color .18s,box-shadow .18s;
+  }
+  .dchip .dl{font-size:13.5px;line-height:1.25;letter-spacing:-.02em;}
+  .dchip .db{font-size:8.5px;line-height:1;min-height:9px;font-weight:800;color:var(--coral);letter-spacing:-.05em;}
+  .dchip.on{background:#fff;color:#B4695A;box-shadow:0 1px 5px rgba(150,110,80,.13);}
+  .dchip.all{flex:0 0 46px;}
+  .dchip.all .dl{font-size:12px;}
+
+  /* ---------- week overview ---------- */
+  .wk{margin-bottom:13px;}
+  .wk:last-child{margin-bottom:0;}
+  .wk-h{display:flex;align-items:center;gap:7px;padding:1px 2px 7px;border-bottom:1px dashed var(--line);margin-bottom:7px;}
+  .wk-t{font-size:14px;font-weight:800;letter-spacing:-.01em;display:flex;align-items:center;gap:5px;}
+  .wk-today{font-size:10px;font-weight:800;color:#B4695A;background:var(--coral-soft);border-radius:999px;padding:1px 7px;}
+  .wk-d{font-size:11.5px;font-weight:700;color:var(--ink-soft);}
+  .wk-p{margin-left:auto;font-size:11px;font-weight:800;color:#8B7A6C;background:#F6EBE0;border-radius:999px;padding:2px 9px;}
+
+  /* ---------- day picker (추가·수정) ---------- */
+  .daypick-wrap{display:flex;align-items:center;gap:7px;margin-top:9px;flex-wrap:wrap;}
+  .daypick-label{font-size:11.5px;font-weight:800;color:#A87C5E;flex:none;}
+  .daypick{display:flex;gap:4px;flex:1;min-width:0;}
+  .dpick{
+    flex:1;min-width:0;border:1px solid var(--line2);background:#fff;color:#9A8677;font-family:inherit;
+    font-weight:800;font-size:12px;border-radius:9px;padding:6px 0;cursor:pointer;min-height:32px;
+  }
+  .dpick.on{background:var(--lav-soft);border-color:#DFD4F2;color:#6B5590;}
 
   /* ---------- cards ---------- */
   .card{
@@ -317,6 +352,9 @@
   <!-- ======= TODAY ======= -->
   <section id="tab-today">
 
+    <!-- weekday chips : 기본은 오늘 요일 -->
+    <div class="daybar" id="daybar" role="tablist" aria-label="요일 선택"></div>
+
     <!-- academy schedule -->
     <div class="card">
       <div class="card-h">
@@ -324,7 +362,7 @@
         <span class="card-sub" id="schSub">—</span>
       </div>
       <div class="sch" id="schRows"></div>
-      <p class="hint" style="margin:9px 0 0;">학원 가는 날(화·목·토)은 <b>학원 숙제·오답 정리</b>만, 학원 없는 날(월·수·금)은 <b>공통수학1 복습 40분</b>으로 채워요. 항목 앞 시간·요일 표시가 그날 추천이에요.</p>
+      <p class="hint" style="margin:9px 0 0;">위에서 요일을 고르면 <b>그 요일에 해야 할 공부만</b> 보여요. 학원 가는 날(화·목·토)은 <b>학원 숙제·오답 정리</b> 위주로, 학원 없는 날은 <b>복습</b>으로 채워요.</p>
     </div>
 
     <!-- timer -->
@@ -373,18 +411,22 @@
     <!-- checklist -->
     <div class="card">
       <div class="card-h">
-        <div class="card-t"><span class="ico">✅</span>오늘의 학습 체크리스트</div>
+        <div class="card-t"><span class="ico">✅</span><span id="listTitle">오늘의 학습 체크리스트</span></div>
         <span class="card-sub" id="listSummary">0/0</span>
       </div>
-      <div class="progress"><i id="dayBar"></i></div>
-      <ul class="list" id="list"></ul>
+      <div class="progress" id="dayProg"><i id="dayBarFill"></i></div>
+      <div id="listHost"></div>
       <form class="add-row" id="addForm" autocomplete="off">
         <input type="text" id="addTitle" placeholder="할 일 추가 (예: 영어 단어 30개)" maxlength="60" aria-label="새 할 일 이름">
         <input type="number" id="addMins" placeholder="분" min="0" max="300" inputmode="numeric" aria-label="예상 시간(분)">
         <button class="btn btn-mint btn-sm" type="submit">+ 추가</button>
       </form>
+      <div class="daypick-wrap" id="addDaysWrap">
+        <span class="daypick-label">넣을 요일</span>
+        <div class="daypick" id="addDays" role="group" aria-label="추가할 요일"></div>
+      </div>
       <div class="row-between" style="margin-top:10px;">
-        <span class="hint" style="margin:0;">✎ 로 항목을 고치고, ✕ 로 지울 수 있어요. 바뀐 목록은 저장되고 공유 링크에도 담겨요.</span>
+        <span class="hint" id="listHint" style="margin:0;"></span>
         <button class="mini" id="btnResetList" type="button">기본 목록으로</button>
       </div>
     </div>
@@ -476,38 +518,58 @@
   "use strict";
 
   /* ================= constants ================= */
-  var STORE_KEY = "g1-planner:v2";
-  var OLD_STORE_KEY = "g1-planner:v1";
+  var STORE_KEY = "g1-planner:v3";      // 요일별 계획 + 날짜별 체크
+  var V2_KEY = "g1-planner:v2";
+  var V1_KEY = "g1-planner:v1";
   var TIMER_KEY = "g1-planner:timer";
   var SOUND_KEY = "g1-planner:sound";
   var SOUND_NOTICE_KEY = "g1-planner:sound-notice";
+  var WEEK_NOTICE_KEY = "g1-planner:week-notice";
   var ENTRY_DATE = new Date(2027, 2, 2); // 고1 입학 시점(3월 초)
   var RING_LEN = 2 * Math.PI * 92;
-  var upgradedFromV1 = false;
+  var upgraded = false;
 
   // 요일 코드: 0=일 1=월 2=화 3=수 4=목 5=금 6=토
-  var DEFAULT_ITEMS = [
-    { id:"timer",   emoji:"⏱️", title:"20분 타이머 켜고 시작하기", note:"매일 · 속도 감각 훈련 (한 세트라도 끝까지)",
-      mins:20, days:[0,1,2,3,4,5,6], daysLabel:"매일", done:false },
-    { id:"math",    emoji:"📐", title:"수학 · 공통수학1 + 마플 순열·조합", note:"월·수·금·일 40분 복습/숙제 — 화·목·토 학원 날은 오답 20분만!",
-      mins:40, days:[0,1,3,5], daysLabel:"월·수·금·일", done:false },
-    { id:"korean",  emoji:"📖", title:"국어 · 고전운문 + 비문학 1지문", note:"월~금 20분 — 어휘·해석 정확도",
-      mins:20, days:[1,2,3,4,5], daysLabel:"월~금", done:false },
-    { id:"english", emoji:"🔤", title:"영어 · 문법 약점 보완 + 고1 모의고사", note:"월·수·금 30분 — 문법 개념 1파트 + 고1 모고 독해 3~4지문 시간 재기",
-      mins:30, days:[1,3,5], daysLabel:"월·수·금", done:false },
-    { id:"science", emoji:"🔬", title:"과학 · EBS 통합과학1 인강", note:"월·수 각 35분 — 1강 듣고 용어 정리",
-      mins:35, days:[1,3], daysLabel:"월·수", done:false },
-    { id:"history", emoji:"🏛️", title:"한국사 · 주 1회 흐름 잡기", note:"일요일 30분 — EBS·기본서 1단원",
-      mins:30, days:[0], daysLabel:"일", done:false }
-  ];
+  var DOW = ["일","월","화","수","목","금","토"];
+  var DAY_ORDER = [1,2,3,4,5,6,0];   // 화면 표시 순서 (월~일)
+  var KNOWN = { timer:1, math:1, korean:1, english:1, science:1, history:1 };
 
-  // 학원 고정 일정 (요일 → 과목/시간)
   var ACADEMY = {
     2: [{ s:"수학학원", a:"17:00", b:"20:00" }],
     4: [{ s:"수학학원", a:"17:00", b:"20:00" }],
     6: [{ s:"수학", a:"12:00", b:"15:00" }, { s:"국어", a:"15:00", b:"17:00" }],
     0: [{ s:"국어", a:"12:00", b:"14:00" }]
   };
+
+  /* ---- 요일별 기본 학습 항목 ---- */
+  function mk(id, emoji, title, note, mins){
+    return { id:id, emoji:emoji, title:title, note:note, mins:mins };
+  }
+  function packTimer(){ return mk("timer","⏱️","20분 타이머 켜고 시작","속도 감각 훈련 · 한 세트라도 끝까지",20); }
+  function packMathReview(){ return mk("math","📐","수학 복습·오답","공통수학1 + 마플 순열·조합 40분 · 틀린 문제만 다시",40); }
+  function packMathWeeknight(){ return mk("math","📐","수학 (은쌤수학 5~8시 · 숙제/오답)","학원 다녀와서 숙제·오답 정리 20분",20); }
+  function packMathSat(){ return mk("math","📐","수학 (은쌤수학 12~3시)","학원 숙제·오답 정리 · 귀가 후 20분",20); }
+  function packKoreanWeekday(){ return mk("korean","📖","국어 평일 20분","고전운문 어휘·해석 + 비문학 1지문",20); }
+  function packKoreanSat(){ return mk("korean","📖","국어 (탑학원 3~5시)","수업 정리 + 어휘 10개",20); }
+  function packKoreanSun(){ return mk("korean","📖","국어 (탑학원 12~2시)","수업 정리 + 비문학 1지문",20); }
+  function packEnglish(){ return mk("english","🔤","영어 문법·고1 모고 30분","문법 개념 1파트 + 고1 모고 독해 3~4지문 시간 재기",30); }
+  function packScience(){ return mk("science","🔬","과학 EBS 통합과학1 35분","1강 듣고 용어 정리까지",35); }
+  function packHistory(){ return mk("history","🏛️","한국사 30분","EBS·기본서 1단원 흐름 잡기",30); }
+
+  function defaultPlanFor(dow){
+    switch (+dow){
+      case 1: case 3:
+        return [packTimer(), packMathReview(), packKoreanWeekday(), packEnglish(), packScience()];
+      case 2: case 4:
+        return [packTimer(), packMathWeeknight(), packKoreanWeekday()];
+      case 5:
+        return [packTimer(), packMathReview(), packKoreanWeekday(), packEnglish()];
+      case 6:
+        return [packTimer(), packMathSat(), packKoreanSat()];
+      default:
+        return [packTimer(), packMathReview(), packKoreanSun(), packHistory()];
+    }
+  }
 
   var ROADMAP = [
     { key:"s1", tag:"1단계", cls:"s1", title:"습관 · 속도 잡기", period:"2026년 11월 ~ 12월",
@@ -540,13 +602,23 @@
   function todayKey(){ return dateKey(new Date()); }
   function parseKey(k){ var p=k.split("-"); return new Date(+p[0], +p[1]-1, +p[2]); }
   function addDays(d,n){ var x=new Date(d.getTime()); x.setDate(x.getDate()+n); return x; }
-  var DOW = ["일","월","화","수","목","금","토"];
+  function dowOf(k){ return parseKey(k).getDay(); }
+  function todayDow(){ return new Date().getDay(); }
+  function mmdd(k){ var d=parseKey(k); return (d.getMonth()+1)+"/"+d.getDate(); }
   function prettyDate(k){
     var d = parseKey(k);
     return d.getFullYear()+"년 "+(d.getMonth()+1)+"월 "+d.getDate()+"일 ("+DOW[d.getDay()]+")";
   }
+  // 그 요일이 다음으로 오는 날 (오늘이 그 요일이면 오늘)
+  function dateForDow(dow){
+    var n = new Date();
+    var t0 = new Date(n.getFullYear(), n.getMonth(), n.getDate());
+    return dateKey(addDays(t0, (+dow - t0.getDay() + 7) % 7));
+  }
   function uid(){ return "c"+Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
   function clamp(n,a,b){ return Math.max(a, Math.min(b,n)); }
+  function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+  function lsSet(k,v){ try{ localStorage.setItem(k,v); return true; }catch(e){ return false; } }
 
   function b64encode(str){
     var bytes = new TextEncoder().encode(str), bin="";
@@ -570,95 +642,156 @@
     toastTimer = setTimeout(function(){ t.classList.remove("on"); }, 2200);
   }
 
-  /* ================= store ================= */
+  /* ================= store =================
+     store = {
+       ver: 3,
+       plan: { "0":[item...], ... "6":[item...] },   // 요일별 계획(항목 정의)
+       days: { "YYYY-MM-DD": { done:{id:true}, kid, kidTs, mom, momTs, sets, updated } },
+       roadmap: {}
+     }
+     체크 상태는 날짜별(done), 항목 정의는 요일별(plan). 그래서 오늘 요일 항목만 보여도
+     체크는 그날 기록으로 남고, 다음 주 같은 요일에 같은 계획이 다시 나온다.
+  */
   var store = loadStore();
-  var viewDate = todayKey();
-  var editId = null;      // 편집 중인 항목 id
+  var viewSel = todayDow();     // 0~6 또는 "all"
+  var viewDate = todayKey();    // 지금 보고 있는 날짜
+  var editing = null;           // { id, date } 편집 중인 항목
+  var addDaysSel = null;        // 추가할 요일 선택
+
+  function normalizeRec(d){
+    if (!d || typeof d !== "object") return d;
+    if (!d.done || typeof d.done !== "object" || Array.isArray(d.done)) d.done = {};
+    if (typeof d.kid !== "string") d.kid = "";
+    if (typeof d.mom !== "string") d.mom = "";
+    if (typeof d.kidTs !== "number") d.kidTs = 0;
+    if (typeof d.momTs !== "number") d.momTs = 0;
+    if (typeof d.sets !== "number") d.sets = 0;
+    if (typeof d.updated !== "number") d.updated = 0;
+    return d;
+  }
+  function cloneItems(arr){
+    return (arr||[]).map(function(it){
+      return mk(String(it.id||uid()), it.emoji||"📝", it.title||"할 일", it.note||"", clamp(+it.mins||0,0,300));
+    });
+  }
+  function freshStore(){
+    var s = { ver:3, plan:{}, days:{}, roadmap:{} };
+    DAY_ORDER.forEach(function(d){ s.plan[d] = defaultPlanFor(d); });
+    return s;
+  }
 
   function loadStore(){
-    var s = { ver: 2, days:{}, roadmap:{} };
-    var raw = null;
-    try{ raw = localStorage.getItem(STORE_KEY); }catch(e){}
+    var fresh = freshStore();
+
+    var raw = lsGet(STORE_KEY);
     if (raw){
       try{
         var p = JSON.parse(raw);
-        if (p && typeof p === "object"){
-          s.days = (p.days && typeof p.days === "object") ? p.days : {};
+        if (p && typeof p === "object" && p.plan && p.days){
+          var s = freshStore();
           s.roadmap = (p.roadmap && typeof p.roadmap === "object") ? p.roadmap : {};
-          s.ver = +p.ver || 1;
+          DAY_ORDER.forEach(function(d){
+            s.plan[d] = Array.isArray(p.plan[d]) ? cloneItems(p.plan[d]) : defaultPlanFor(d);
+          });
+          s.days = p.days;
+          Object.keys(s.days).forEach(function(k){ normalizeRec(s.days[k]); });
+          return s;
         }
       }catch(e){ /* 손상된 저장값은 새로 시작 */ }
-      if (s.ver >= 2) return s;
     }
 
-    // 예전 저장값(v1) → 학원 시간표·교재에 맞춘 기본 목록(v2)으로 한 번만 옮긴다.
-    // 체크 여부·한마디·피드백·로드맵은 그대로 살리고, 기본 항목은 새 목록으로 바꾼다.
-    var old = null;
-    if (!raw){ try{ old = localStorage.getItem(OLD_STORE_KEY); }catch(e){} }
-    if (old){
-      try{
-        var o = JSON.parse(old);
-        if (o && o.days && typeof o.days === "object"){
-          var NEW_IDS = {}, OLD_IDS = { timer:1, math:1, korean:1, english:1, reading:1 };
-          DEFAULT_ITEMS.forEach(function(it){ NEW_IDS[it.id] = true; });
-          Object.keys(o.days).forEach(function(k){
-            var d = o.days[k];
-            if (!d || !Array.isArray(d.items)) return;
-            var doneMap = {}, extras = [];
-            d.items.forEach(function(it){
-              if (!it || !it.id) return;
-              if (NEW_IDS[it.id]) doneMap[it.id] = !!it.done;
-              else if (!OLD_IDS[it.id]) extras.push(it); // 옛 기본 항목은 새 목록으로 대체
-            });
-            var items = defaultItems().map(function(it){ it.done = !!doneMap[it.id]; return it; });
-            extras.forEach(function(it){
-              items.push({ id:String(it.id), emoji:it.emoji||"📝", title:it.title||"할 일", note:it.note||"",
-                           mins:clamp(+it.mins||0, 0, 300), done:!!it.done });
-            });
-            s.days[k] = { items:items, kid:d.kid||"", kidTs:+d.kidTs||0, mom:d.mom||"", momTs:+d.momTs||0,
-                          sets:+d.sets||0, updated:+d.updated||0 };
-          });
-          if (o.roadmap && typeof o.roadmap === "object") s.roadmap = o.roadmap;
-          upgradedFromV1 = true;
-          try{ localStorage.setItem(STORE_KEY, JSON.stringify(s)); }catch(e){}
+    // 예전 저장값(v2·v1) → 요일별 계획(v3). 체크 여부·한마디·피드백·로드맵은 그대로 살린다.
+    var oldRaw = lsGet(V2_KEY) || lsGet(V1_KEY);
+    if (!oldRaw) return fresh;
+    var o = null;
+    try{ o = JSON.parse(oldRaw); }catch(e){ return fresh; }
+    if (!o || !o.days || typeof o.days !== "object") return fresh;
+
+    if (o.roadmap && typeof o.roadmap === "object") fresh.roadmap = o.roadmap;
+    var custom = {};              // 요일 → 사용자가 직접 만든 항목
+    var IGNORE = { reading:1 };   // 옛 기본 항목 — 새 요일 계획으로 대체한다
+    Object.keys(o.days).forEach(function(k){
+      var d = o.days[k];
+      if (!d || !Array.isArray(d.items)) return;
+      var dow = dowOf(k), done = {};
+      d.items.forEach(function(it){
+        if (!it) return;
+        var id = it.id ? String(it.id) : uid();
+        if (KNOWN[id]){ if (it.done) done[id] = true; return; }
+        if (IGNORE[id]) return;
+        var list = custom[dow] || (custom[dow] = []);
+        if (!list.some(function(x){ return x.id === id || x.title === it.title; })){
+          list.push(mk(id, it.emoji||"📝", it.title||"할 일", it.note||"", clamp(+it.mins||0,0,300)));
         }
-      }catch(e){ /* 옛 저장값을 못 읽으면 새로 시작 */ }
-    }
-    s.ver = 2;
-    return s;
-  }
-  function saveStore(){
-    try{ localStorage.setItem(STORE_KEY, JSON.stringify(store)); }
-    catch(e){ toast("저장 공간이 부족해 저장하지 못했어요"); }
-  }
-  function defaultItems(){
-    return DEFAULT_ITEMS.map(function(it){
-      return { id:it.id, emoji:it.emoji, title:it.title, note:it.note, mins:it.mins,
-               days:it.days.slice(), daysLabel:it.daysLabel, done:false };
+        if (it.done) done[id] = true;
+      });
+      fresh.days[k] = { done:done, kid:d.kid||"", kidTs:+d.kidTs||0, mom:d.mom||"", momTs:+d.momTs||0,
+                        sets:+d.sets||0, updated:+d.updated||0 };
     });
+    Object.keys(custom).forEach(function(dow){
+      var list = fresh.plan[dow] || (fresh.plan[dow] = defaultPlanFor(dow));
+      custom[dow].forEach(function(it){
+        if (!list.some(function(x){ return x.id === it.id; })) list.push(it);
+      });
+    });
+    upgraded = true;
+    return fresh;
   }
-  function newDay(){
-    return { items: defaultItems(), kid:"", kidTs:0, mom:"", momTs:0, sets:0, updated: Date.now() };
+
+  function saveStore(){
+    if (!lsSet(STORE_KEY, JSON.stringify(store))) toast("저장 공간이 부족해 저장하지 못했어요");
   }
-  function getDay(k, create){
+
+  function planOf(dow){
+    dow = +dow;
+    var p = store.plan[dow];
+    if (!Array.isArray(p)){ p = defaultPlanFor(dow); store.plan[dow] = p; }
+    return p;
+  }
+  function planLen(dow){ return planOf(dow).length; }
+  function idxOf(arr, id){ for (var i=0;i<arr.length;i++){ if (arr[i].id === id) return i; } return -1; }
+  function daysOfItem(id){
+    var out = [];
+    DAY_ORDER.forEach(function(d){ if (idxOf(planOf(d), id) >= 0) out.push(d); });
+    return out;
+  }
+  function itemAnywhere(id){
+    for (var i=0;i<DAY_ORDER.length;i++){
+      var arr = planOf(DAY_ORDER[i]), j = idxOf(arr, id);
+      if (j >= 0) return arr[j];
+    }
+    return null;
+  }
+  function rec(k, create){
     var d = store.days[k];
     if (!d && create !== false){
-      d = newDay();
+      d = { done:{}, kid:"", kidTs:0, mom:"", momTs:0, sets:0, updated:Date.now() };
       store.days[k] = d;
     }
-    if (d){
-      // 옛 형식/누락 필드 보정
-      if (!Array.isArray(d.items)) d.items = defaultItems();
-      if (typeof d.kid !== "string") d.kid = "";
-      if (typeof d.mom !== "string") d.mom = "";
-      if (typeof d.kidTs !== "number") d.kidTs = 0;
-      if (typeof d.momTs !== "number") d.momTs = 0;
-      if (typeof d.sets !== "number") d.sets = 0;
-      if (typeof d.updated !== "number") d.updated = 0;
-    }
-    return d;
+    return d ? normalizeRec(d) : null;
   }
-  function touch(){ var d = getDay(viewDate, true); d.updated = Date.now(); saveStore(); }
+  function isDone(k, id){ var r = store.days[k]; return !!(r && r.done && r.done[id]); }
+  function countDone(k, dow){
+    var r = store.days[k];
+    if (!r || !r.done) return 0;
+    var n = 0;
+    planOf(dow).forEach(function(it){ if (r.done[it.id]) n++; });
+    return n;
+  }
+  function anyDone(k){
+    var r = store.days[k];
+    return !!(r && r.done && Object.keys(r.done).some(function(id){ return r.done[id]; }));
+  }
+  function hasContent(d){
+    return !!d && (anyDoneObj(d.done) || (d.kid||"").trim() !== "" || (d.mom||"").trim() !== "" || (d.sets||0) > 0);
+  }
+  function anyDoneObj(done){
+    if (!done) return false;
+    var ks = Object.keys(done);
+    for (var i=0;i<ks.length;i++){ if (done[ks[i]]) return true; }
+    return false;
+  }
+  function touch(k){ var r = rec(k, true); r.updated = Date.now(); saveStore(); }
 
   /* ================= academy ================= */
   function shortTime(t){ return t.replace(":00", "시"); }
@@ -669,13 +802,14 @@
     return DOW[dow] + " · " + parts.join(" · ");
   }
   function renderSchedule(){
-    var dow = parseKey(viewDate).getDay();
+    var selDow = (viewSel === "all") ? todayDow() : +viewSel;
+    var isToday = selDow === todayDow();
     var box = $("schRows");
     box.innerHTML = "";
 
-    function row(label, dowList, cells, isToday){
+    function row(label, cells, isSel){
       var el = document.createElement("div");
-      el.className = "sch-row" + (isToday ? " today" : "");
+      el.className = "sch-row" + (isSel ? " today" : "");
       var d = document.createElement("div");
       d.className = "sch-d"; d.textContent = label;
       var b = document.createElement("div");
@@ -689,35 +823,36 @@
         b.appendChild(t);
       });
       el.appendChild(d); el.appendChild(b);
-      if (isToday){
-        var now = document.createElement("span"); now.className = "sch-now"; now.textContent = "오늘";
+      if (isSel){
+        var now = document.createElement("span"); now.className = "sch-now";
+        now.textContent = isToday ? "오늘" : DOW[selDow] + "요일";
         el.appendChild(now);
       }
       box.appendChild(el);
     }
 
-    row("화·목", [2,4], ACADEMY[2].map(function(a){ return [a.s, a.a + "~" + a.b]; }), dow===2||dow===4);
-    row("토", [6], ACADEMY[6].map(function(a){ return [a.s, a.a + "~" + a.b]; }), dow===6);
-    row("일", [0], ACADEMY[0].map(function(a){ return [a.s, a.a + "~" + a.b]; }), dow===0);
-    row("월·수·금", [1,3,5], [["학원 없음", ""], ["", "수학 40분 · 영어 30분 · 과학 35분"]], dow===1||dow===3||dow===5);
+    row("화·목", ACADEMY[2].map(function(a){ return [a.s, a.a + "~" + a.b]; }), selDow===2||selDow===4);
+    row("토", ACADEMY[6].map(function(a){ return [a.s, a.a + "~" + a.b]; }), selDow===6);
+    row("일", ACADEMY[0].map(function(a){ return [a.s, a.a + "~" + a.b]; }), selDow===0);
+    row("월·수·금", [["학원 없음", ""], ["", "수학 복습 40분 · 영어 30분 · 과학 35분"]], selDow===1||selDow===3||selDow===5);
 
-    $("schSub").textContent = ACADEMY[dow] ? "오늘은 학원 가는 날" : "오늘은 학원 없는 날";
+    $("schSub").textContent = (isToday ? "오늘은 " : DOW[selDow] + "요일은 ") +
+      (ACADEMY[selDow] ? "학원 가는 날" : "학원 없는 날");
   }
   function todayHint(it, dow){
-    var mathAc = (dow === 2 || dow === 4 || dow === 6);   // 수학학원 가는 날(화·목·토)
-    if (it.id === "math"){
-      return mathAc ? "오늘은 수학학원 가는 날 → 학원 숙제·오답 정리 20분만!"
-                    : "오늘은 수학학원 없는 날 → 공통수학1 + 마플 40분 복습";
-    }
-    if (it.id === "korean" && dow >= 1 && dow <= 5) return "국어학원 없는 날 → 고전운문 어휘·해석 20분";
-    if (it.id === "science" && (dow === 1 || dow === 3)) return "EBS 통합과학1 — 1강만, 용어 정리까지";
+    var list = ACADEMY[dow] || [];
+    var mathAc = list.some(function(a){ return a.s.indexOf("수학") === 0; });
+    if (it.id === "math") return mathAc ? "오늘은 수학학원 가는 날 → 숙제·오답만 하고 끝내요" : "오늘은 학원 없는 날 → 복습 40분 채우기";
+    if (it.id === "science") return "EBS 통합과학1 — 1강만, 용어 정리까지";
+    if (it.id === "english") return "문법 1파트 + 고1 모고 독해 3~4지문, 시간 재면서";
+    if (it.id === "history") return "주 1회 한국사 — 1단원 흐름만 잡기";
     return "";
   }
 
   /* ================= header ================= */
   function renderHeader(){
-    var k = viewDate;
-    $("todayLabel").textContent = prettyDate(k) + (k===todayKey() ? " · 오늘" : "");
+    var isToday = viewDate === todayKey();
+    $("todayLabel").textContent = prettyDate(viewDate) + (isToday ? " · 오늘" : "");
 
     var now = new Date();
     var t0 = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -728,132 +863,243 @@
     else dd = "고1 입학 D+" + (-diff);
     $("dday").textContent = dd;
 
-    var wd = parseKey(k).getDay();
-    $("weekdayPill").textContent = academyPill(wd);
+    var selDow = (viewSel === "all") ? todayDow() : +viewSel;
+    $("weekdayPill").textContent = academyPill(selDow);
 
-    var day = getDay(viewDate, false);
-    var done = day ? day.items.filter(function(i){ return i.done; }).length : 0;
-    var total = day ? day.items.length : 0;
-    $("todayRate").textContent = total ? Math.round(done/total*100)+"%" : "0%";
+    var td = todayDow();
+    var tDone = countDone(todayKey(), td), tLen = planLen(td);
+    $("todayRate").textContent = tLen ? Math.round(tDone/tLen*100) + "%" : "0%";
 
     // 이번 주(최근 7일) — 기록이 있는 날 기준
     var sumDone=0, sumTotal=0;
     for (var i=0;i<7;i++){
       var kk = dateKey(addDays(new Date(), -i));
-      var d = store.days[kk];
-      if (d && Array.isArray(d.items) && d.items.length){
-        sumTotal += d.items.length;
-        sumDone += d.items.filter(function(x){ return x.done; }).length;
-      }
+      if (!store.days[kk]) continue;
+      var dow = dowOf(kk), len = planLen(dow);
+      if (!len) continue;
+      sumTotal += len; sumDone += countDone(kk, dow);
     }
-    $("weekRate").textContent = sumTotal ? Math.round(sumDone/sumTotal*100)+"%" : "0%";
+    $("weekRate").textContent = sumTotal ? Math.round(sumDone/sumTotal*100) + "%" : "0%";
 
     // 연속 기록 (오늘 또는 어제부터 거슬러)
     var streak = 0, cur = new Date();
-    if (!store.days[dateKey(cur)]) cur = addDays(cur,-1);
-    while (store.days[dateKey(cur)] && store.days[dateKey(cur)].items &&
-           store.days[dateKey(cur)].items.some(function(x){ return x.done; })){
-      streak++; cur = addDays(cur,-1);
-    }
+    if (!anyDone(dateKey(cur))) cur = addDays(cur,-1);
+    while (anyDone(dateKey(cur))){ streak++; cur = addDays(cur,-1); }
     $("streak").textContent = streak + "일";
+  }
+
+  /* ================= weekday chips ================= */
+  function setSel(sel){
+    viewSel = sel;
+    viewDate = (sel === "all") ? todayKey() : dateForDow(+sel);
+    editing = null;
+    addDaysSel = (sel === "all") ? null : [+sel];
+    renderAll();
+  }
+  function renderDayBar(){
+    var box = $("daybar");
+    box.innerHTML = "";
+    var td = todayDow();
+    DAY_ORDER.forEach(function(dow){
+      var on = (viewSel !== "all" && +viewSel === dow);
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "dchip" + (on ? " on" : "");
+      b.setAttribute("role","tab");
+      b.setAttribute("aria-selected", on ? "true" : "false");
+      b.setAttribute("aria-label", DOW[dow] + "요일" + (dow === td ? " (오늘)" : ""));
+      var l = document.createElement("span"); l.className = "dl"; l.textContent = DOW[dow];
+      var db = document.createElement("span"); db.className = "db"; db.textContent = (dow === td) ? "오늘" : "";
+      b.appendChild(l); b.appendChild(db);
+      b.addEventListener("click", function(){ setSel(dow); });
+      box.appendChild(b);
+    });
+    var all = document.createElement("button");
+    all.type = "button";
+    all.className = "dchip all" + (viewSel === "all" ? " on" : "");
+    all.setAttribute("role","tab");
+    all.setAttribute("aria-selected", viewSel === "all" ? "true" : "false");
+    all.setAttribute("aria-label","이번 주 전체 보기");
+    var al = document.createElement("span"); al.className = "dl"; al.textContent = "전체";
+    var ab = document.createElement("span"); ab.className = "db"; ab.textContent = "";
+    all.appendChild(al); all.appendChild(ab);
+    all.addEventListener("click", function(){ setSel("all"); });
+    box.appendChild(all);
   }
 
   /* ================= checklist ================= */
   function renderList(){
-    var day = getDay(viewDate, true);
-    var list = $("list");
-    list.innerHTML = "";
+    var host = $("listHost");
+    host.innerHTML = "";
+    var isAll = viewSel === "all";
 
-    var dow = parseKey(viewDate).getDay();
+    $("addForm").style.display = isAll ? "none" : "";
+    $("addDaysWrap").style.display = isAll ? "none" : "";
+    $("btnResetList").style.display = isAll ? "none" : "";
+    $("dayProg").style.display = isAll ? "none" : "";
+    $("listHint").textContent = isAll
+      ? "요일을 고르면 그날 화면에서 항목을 고치고 체크할 수 있어요."
+      : "✎ 로 고치고 ✕ 로 지울 수 있어요. 항목은 요일별로 저장돼서 다음 주 같은 요일에 그대로 나와요.";
+
+    if (isAll){ renderWeek(host); return; }
+
+    var dow = +viewSel;
+    var items = planOf(dow);
     var isToday = viewDate === todayKey();
+    var doneN = countDone(viewDate, dow);
 
-    day.items.forEach(function(it){
-      var li = document.createElement("li");
-      li.className = "item" + (it.done ? " done" : "");
-      li.dataset.id = it.id;
+    $("listTitle").textContent = isToday ? "오늘의 학습 체크리스트" : (DOW[dow] + "요일 학습 체크리스트");
+    $("listSummary").textContent = doneN + "/" + items.length;
+    $("dayBarFill").style.width = (items.length ? Math.round(doneN/items.length*100) : 0) + "%";
 
-      if (editId === it.id){
-        li.appendChild(buildEditor(it));
-        list.appendChild(li);
-        return;
-      }
+    var ul = document.createElement("ul");
+    ul.className = "list";
+    items.forEach(function(it){ ul.appendChild(itemRow(it, viewDate, isToday)); });
+    host.appendChild(ul);
 
-      var chk = document.createElement("button");
-      chk.className = "chk";
-      chk.type = "button";
-      chk.setAttribute("aria-label", (it.done ? "완료 취소: " : "완료 체크: ") + it.title);
-      chk.textContent = "✓";
-      chk.addEventListener("click", function(){ toggleItem(it.id); });
-
-      var body = document.createElement("div");
-      body.className = "it-body";
-      var t = document.createElement("div");
-      t.className = "it-title";
-      var rec = Array.isArray(it.days) && it.days.indexOf(dow) >= 0;
-      if (rec && isToday && !it.done){
-        var rc = document.createElement("span");
-        rc.className = "it-rec"; rc.textContent = "오늘 추천";
-        t.appendChild(rc);
-      }
-      if (it.mins) {
-        var m = document.createElement("span");
-        m.className = "it-meta";
-        m.textContent = it.mins + "분";
-        t.appendChild(m);
-      }
-      if (it.daysLabel){
-        var dl = document.createElement("span");
-        dl.className = "it-days";
-        dl.textContent = it.daysLabel;
-        t.appendChild(dl);
-      }
-      t.appendChild(document.createTextNode(it.emoji + " " + it.title));
-      body.appendChild(t);
-      if (it.note){
-        var n = document.createElement("div");
-        n.className = "it-note";
-        n.textContent = it.note;
-        body.appendChild(n);
-      }
-      var hint = (isToday && !it.done) ? todayHint(it, dow) : "";
-      if (hint){
-        var hd = document.createElement("div");
-        hd.className = "it-today";
-        hd.textContent = hint;
-        body.appendChild(hd);
-      }
-
-      var tools = document.createElement("div");
-      tools.className = "it-tools";
-      var be = document.createElement("button");
-      be.className = "tool"; be.type = "button"; be.textContent = "✎";
-      be.setAttribute("aria-label", "수정: " + it.title);
-      be.addEventListener("click", function(){ editId = it.id; renderList(); });
-      var bd = document.createElement("button");
-      bd.className = "tool"; bd.type = "button"; bd.textContent = "✕";
-      bd.setAttribute("aria-label", "삭제: " + it.title);
-      bd.addEventListener("click", function(){ deleteItem(it.id); });
-      tools.appendChild(be); tools.appendChild(bd);
-
-      li.appendChild(chk); li.appendChild(body); li.appendChild(tools);
-      list.appendChild(li);
-    });
-
-    var done = day.items.filter(function(i){ return i.done; }).length;
-    var total = day.items.length;
-    $("listSummary").textContent = done + "/" + total + (total ? " 완료" : "");
-    $("dayBar").style.width = (total ? Math.round(done/total*100) : 0) + "%";
-    $("totalSessions").textContent = "오늘 " + (day.sets||0) + "세트";
-
-    if (total === 0){
-      var empty = document.createElement("div");
-      empty.className = "empty";
-      empty.textContent = "할 일이 모두 지워졌어요. 아래에서 추가하거나 '기본 목록으로'를 눌러 주세요.";
-      list.appendChild(empty);
+    if (!items.length){
+      var e = document.createElement("div");
+      e.className = "empty";
+      e.textContent = DOW[dow] + "요일에 할 일이 없어요. 아래에서 추가하거나 '기본 목록으로'를 눌러 주세요.";
+      host.appendChild(e);
     }
+    buildAddDays();
   }
 
-  function buildEditor(it){
+  function renderWeek(host){
+    var totalDone = 0, totalLen = 0;
+    DAY_ORDER.forEach(function(dow){
+      var date = dateForDow(dow);
+      var items = planOf(dow);
+      var isToday = date === todayKey();
+      var doneN = countDone(date, dow);
+      totalDone += doneN; totalLen += items.length;
+
+      var box = document.createElement("div");
+      box.className = "wk";
+
+      var h = document.createElement("div");
+      h.className = "wk-h";
+      var t = document.createElement("div");
+      t.className = "wk-t";
+      t.appendChild(document.createTextNode(DOW[dow] + "요일"));
+      if (isToday){
+        var b = document.createElement("span");
+        b.className = "wk-today"; b.textContent = "오늘";
+        t.appendChild(b);
+      }
+      var d = document.createElement("span");
+      d.className = "wk-d"; d.textContent = mmdd(date);
+      var pr = document.createElement("span");
+      pr.className = "wk-p"; pr.textContent = doneN + "/" + items.length;
+
+      h.appendChild(t); h.appendChild(d); h.appendChild(pr);
+      box.appendChild(h);
+
+      var ul = document.createElement("ul");
+      ul.className = "list";
+      items.forEach(function(it){ ul.appendChild(itemRow(it, date, isToday)); });
+      box.appendChild(ul);
+      if (!items.length){
+        var e = document.createElement("div");
+        e.className = "empty"; e.style.padding = "10px 6px";
+        e.textContent = "이 요일에는 계획이 없어요.";
+        box.appendChild(e);
+      }
+      host.appendChild(box);
+    });
+
+    $("listTitle").textContent = "이번 주 요일별 계획";
+    $("listSummary").textContent = totalDone + "/" + totalLen;
+  }
+
+  function itemRow(it, date, isToday){
+    var dow = dowOf(date);
+    var li = document.createElement("li");
+    var done = isDone(date, it.id);
+    li.className = "item" + (done ? " done" : "");
+    li.dataset.id = it.id;
+
+    if (editing && editing.id === it.id && editing.date === date){
+      li.appendChild(buildEditor(it, dow));
+      return li;
+    }
+
+    var chk = document.createElement("button");
+    chk.className = "chk";
+    chk.type = "button";
+    chk.setAttribute("aria-label", (done ? "완료 취소: " : "완료 체크: ") + it.title);
+    chk.textContent = "✓";
+    chk.addEventListener("click", function(){ toggleItem(date, it.id); });
+
+    var body = document.createElement("div");
+    body.className = "it-body";
+    var t = document.createElement("div");
+    t.className = "it-title";
+    if (it.mins){
+      var m = document.createElement("span");
+      m.className = "it-meta";
+      m.textContent = it.mins + "분";
+      t.appendChild(m);
+    }
+    t.appendChild(document.createTextNode((it.emoji ? it.emoji + " " : "") + it.title));
+    body.appendChild(t);
+    if (it.note){
+      var n = document.createElement("div");
+      n.className = "it-note";
+      n.textContent = it.note;
+      body.appendChild(n);
+    }
+    var hint = (isToday && !done) ? todayHint(it, dow) : "";
+    if (hint){
+      var hd = document.createElement("div");
+      hd.className = "it-today";
+      hd.textContent = hint;
+      body.appendChild(hd);
+    }
+
+    var tools = document.createElement("div");
+    tools.className = "it-tools";
+    var be = document.createElement("button");
+    be.className = "tool"; be.type = "button"; be.textContent = "✎";
+    be.setAttribute("aria-label", "수정: " + it.title);
+    be.addEventListener("click", function(){ editing = { id: it.id, date: date }; renderList(); });
+    var bd = document.createElement("button");
+    bd.className = "tool"; bd.type = "button"; bd.textContent = "✕";
+    bd.setAttribute("aria-label", "삭제: " + it.title);
+    bd.addEventListener("click", function(){ deleteItem(it.id); });
+    tools.appendChild(be); tools.appendChild(bd);
+
+    li.appendChild(chk); li.appendChild(body); li.appendChild(tools);
+    return li;
+  }
+
+  function buildAddDays(){
+    var box = $("addDays");
+    box.innerHTML = "";
+    var cur = (viewSel === "all") ? todayDow() : +viewSel;
+    if (!Array.isArray(addDaysSel) || !addDaysSel.length) addDaysSel = [cur];
+    DAY_ORDER.forEach(function(dow){
+      var on = addDaysSel.indexOf(dow) >= 0;
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "dpick" + (on ? " on" : "");
+      b.textContent = DOW[dow];
+      b.setAttribute("aria-pressed", on ? "true" : "false");
+      b.setAttribute("aria-label", DOW[dow] + "요일에 추가");
+      b.addEventListener("click", function(){
+        var i = addDaysSel.indexOf(dow);
+        if (i >= 0){
+          if (addDaysSel.length === 1) return;
+          addDaysSel.splice(i,1);
+        } else addDaysSel.push(dow);
+        buildAddDays();
+      });
+      box.appendChild(b);
+    });
+  }
+
+  function buildEditor(it, dow){
     var wrap = document.createElement("div");
     wrap.className = "editor";
     wrap.style.flex = "1";
@@ -875,7 +1121,9 @@
     var chosen = it.emoji;
     ["⏱️","📐","📖","🔤","📚","✏️","🧪","🔬","🏛️","🌏"].forEach(function(e){
       var b = document.createElement("button");
-      b.type = "button"; b.className = "emoji-pick" + (e===chosen ? " on" : ""); b.textContent = e;
+      b.type = "button";
+      b.className = "emoji-pick" + (e === chosen ? " on" : "");
+      b.textContent = e;
       b.addEventListener("click", function(){
         chosen = e;
         Array.prototype.forEach.call(em.children, function(c){ c.classList.remove("on"); });
@@ -889,96 +1137,145 @@
     nt.setAttribute("aria-label","설명(선택)");
     nt.placeholder = "설명 (선택)";
 
+    var sel = daysOfItem(it.id);
+    if (!sel.length) sel = [dow];
+
+    var dWrap = document.createElement("div");
+    dWrap.className = "daypick-wrap";
+    dWrap.style.marginTop = "0";
+    var dLab = document.createElement("span");
+    dLab.className = "daypick-label"; dLab.textContent = "요일";
+    var dpick = document.createElement("div");
+    dpick.className = "daypick";
+    DAY_ORDER.forEach(function(d){
+      var on = sel.indexOf(d) >= 0;
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "dpick" + (on ? " on" : "");
+      b.textContent = DOW[d];
+      b.setAttribute("aria-pressed", on ? "true" : "false");
+      b.setAttribute("aria-label", DOW[d] + "요일에 넣기");
+      b.addEventListener("click", function(){
+        var i = sel.indexOf(d);
+        if (i >= 0){
+          if (sel.length === 1) return;
+          sel.splice(i,1);
+        } else sel.push(d);
+        var nowOn = sel.indexOf(d) >= 0;
+        b.classList.toggle("on", nowOn);
+        b.setAttribute("aria-pressed", nowOn ? "true" : "false");
+      });
+      dpick.appendChild(b);
+    });
+    dWrap.appendChild(dLab); dWrap.appendChild(dpick);
+
     var r2 = document.createElement("div");
     r2.className = "row";
     var ok = document.createElement("button");
-    ok.type="button"; ok.className="btn btn-primary btn-sm"; ok.textContent="저장"; ok.style.flex="1";
+    ok.type = "button"; ok.className = "btn btn-primary btn-sm"; ok.textContent = "저장"; ok.style.flex = "1";
     var cancel = document.createElement("button");
-    cancel.type="button"; cancel.className="btn btn-ghost btn-sm"; cancel.textContent="취소"; cancel.style.flex="1";
+    cancel.type = "button"; cancel.className = "btn btn-ghost btn-sm"; cancel.textContent = "취소"; cancel.style.flex = "1";
     r2.appendChild(ok); r2.appendChild(cancel);
 
     ok.addEventListener("click", function(){
       var title = inp.value.trim();
       if (!title){ toast("할 일 이름을 적어 주세요"); inp.focus(); return; }
-      var day = getDay(viewDate, true);
-      var target = day.items.filter(function(x){ return x.id === it.id; })[0];
-      if (target){
-        target.title = title;
-        target.emoji = chosen;
-        target.note = nt.value.trim();
-        target.mins = clamp(parseInt(mins.value,10) || 0, 0, 300);
-      }
-      touch();
-      editId = null;
+      if (!sel.length){ toast("요일을 하나 이상 골라 주세요"); return; }
+      updateItem(it.id, {
+        emoji: chosen, title: title, note: nt.value.trim(),
+        mins: clamp(parseInt(mins.value,10) || 0, 0, 300)
+      }, sel.slice());
+      editing = null;
+      saveStore();
       renderAll();
       toast("수정했어요");
     });
-    cancel.addEventListener("click", function(){ editId = null; renderList(); });
+    cancel.addEventListener("click", function(){ editing = null; renderList(); });
 
-    wrap.appendChild(r1); wrap.appendChild(em); wrap.appendChild(nt); wrap.appendChild(r2);
+    wrap.appendChild(r1); wrap.appendChild(em); wrap.appendChild(nt); wrap.appendChild(dWrap); wrap.appendChild(r2);
     return wrap;
   }
 
-  function toggleItem(id){
-    var day = getDay(viewDate, true);
-    var it = day.items.filter(function(x){ return x.id === id; })[0];
-    if (!it) return;
-    it.done = !it.done;
-    touch();
-    renderList(); renderHeader();
-    if (it.done) softFeedback();
+  function updateItem(id, patch, days){
+    DAY_ORDER.forEach(function(dow){
+      var arr = planOf(dow), i = idxOf(arr, id), want = days.indexOf(dow) >= 0;
+      if (want && i < 0){
+        arr.push(mk(id, patch.emoji, patch.title, patch.note, patch.mins));
+      } else if (want){
+        arr[i].emoji = patch.emoji;
+        arr[i].title = patch.title;
+        arr[i].note = patch.note;
+        arr[i].mins = patch.mins;
+      } else if (!want && i >= 0){
+        arr.splice(i, 1);
+      }
+    });
+  }
+
+  function toggleItem(date, id){
+    var r = rec(date, true);
+    if (r.done[id]) delete r.done[id];
+    else r.done[id] = true;
+    r.updated = Date.now();
+    saveStore();
+    softFeedback();
+    renderAll();
   }
   function softFeedback(){
     if (navigator.vibrate) { try{ navigator.vibrate(18); }catch(e){} }
   }
   function deleteItem(id){
-    var day = getDay(viewDate, true);
-    var it = day.items.filter(function(x){ return x.id === id; })[0];
+    var it = itemAnywhere(id);
     if (!it) return;
-    if (!confirm("'" + it.title + "' 항목을 지울까요?")) return;
-    day.items = day.items.filter(function(x){ return x.id !== id; });
-    touch();
+    if (!confirm("'" + it.title + "' 항목을 요일 계획에서 지울까요?")) return;
+    DAY_ORDER.forEach(function(dow){
+      var arr = planOf(dow), i = idxOf(arr, id);
+      if (i >= 0) arr.splice(i, 1);
+    });
+    saveStore();
     renderAll();
     toast("지웠어요. '기본 목록으로' 누르면 되돌아와요");
   }
-  function addItem(title, mins){
-    var day = getDay(viewDate, true);
-    day.items.push({ id:uid(), emoji:"📝", title:title, note:"", mins:clamp(mins||0,0,300), done:false });
-    touch();
+  function addItem(title, mins, days){
+    var id = uid();
+    days.forEach(function(dow){
+      planOf(dow).push(mk(id, "📝", title, "", clamp(mins||0, 0, 300)));
+    });
+    saveStore();
+    addDaysSel = (viewSel === "all") ? null : [+viewSel];
     renderAll();
   }
   function resetList(){
-    if (!confirm("오늘 목록을 새 기본 6개 항목으로 되돌릴까요? (체크한 상태는 그대로 둘게요)")) return;
-    var day = getDay(viewDate, true);
-    var prev = {};
-    day.items.forEach(function(i){ prev[i.id] = i.done; });
-    day.items = defaultItems().map(function(i){ i.done = !!prev[i.id]; return i; });
-    touch();
+    if (viewSel === "all") return;
+    var dow = +viewSel;
+    if (!confirm(DOW[dow] + "요일 목록을 기본 항목으로 되돌릴까요? (체크한 상태는 그대로 둘게요)")) return;
+    store.plan[dow] = defaultPlanFor(dow);
+    saveStore();
     renderAll();
     toast("기본 목록으로 되돌렸어요");
   }
 
   /* ================= feedback ================= */
+  function fbDate(){ return (viewSel === "all") ? todayKey() : viewDate; }
   function renderFeedback(){
-    var day = getDay(viewDate, true);
-    $("taKid").value = day.kid || "";
-    $("taMom").value = day.mom || "";
+    var r = rec(fbDate(), false);
+    $("taKid").value = (r && r.kid) || "";
+    $("taMom").value = (r && r.mom) || "";
   }
-  var fbTimerA=null, fbTimerB=null;
   function bindFeedback(){
     $("taKid").addEventListener("input", function(e){
-      var day = getDay(viewDate, true);
-      day.kid = e.target.value;
-      day.kidTs = Date.now();
-      day.updated = Date.now();
+      var r = rec(fbDate(), true);
+      r.kid = e.target.value;
+      r.kidTs = Date.now();
+      r.updated = Date.now();
       saveStore();
       flashDot("dotA");
     });
     $("taMom").addEventListener("input", function(e){
-      var day = getDay(viewDate, true);
-      day.mom = e.target.value;
-      day.momTs = Date.now();
-      day.updated = Date.now();
+      var r = rec(fbDate(), true);
+      r.mom = e.target.value;
+      r.momTs = Date.now();
+      r.updated = Date.now();
       saveStore();
       flashDot("dotB");
     });
@@ -992,71 +1289,76 @@
 
   /* ================= share ================= */
   function buildPayload(k){
-    var d = getDay(k, true);
+    var dow = dowOf(k);
+    var r = store.days[k] || { done:{}, kid:"", kidTs:0, mom:"", momTs:0, sets:0, updated:0 };
+    var doneIds = [];
+    planOf(dow).forEach(function(it){ if (r.done && r.done[it.id]) doneIds.push(it.id); });
     return {
-      v: 3,
+      v: 4,
       d: k,
-      i: d.items.map(function(it){
-        return [it.id, it.emoji, it.title, it.note||"", it.mins||0, it.done?1:0,
-                Array.isArray(it.days) ? it.days.join(",") : "", it.daysLabel||""];
-      }),
-      s: d.kid||"",
-      st: d.kidTs||0,
-      m: d.mom||"",
-      mt: d.momTs||0,
-      t: d.updated||Date.now()
+      w: dow,
+      p: planOf(dow).map(function(it){ return [it.id, it.emoji || "📝", it.title, it.note || "", it.mins || 0]; }),
+      c: doneIds,
+      s: r.kid || "",
+      st: r.kidTs || 0,
+      m: r.mom || "",
+      mt: r.momTs || 0,
+      t: r.updated || Date.now()
     };
   }
   function applyPayload(p){
-    if (!p || !p.d || !Array.isArray(p.i)) return false;
-    var day = getDay(p.d, false);
+    if (!p || !p.d || !Array.isArray(p.p)) return false;
+    var k = p.d;
+    var dow = (typeof p.w === "number") ? p.w : dowOf(k);
+    var items = p.p.map(function(a){
+      return mk(String(a[0] || uid()), a[1] || "📝", a[2] || "할 일", a[3] || "", clamp(+a[4] || 0, 0, 300));
+    });
+    var done = {};
+    (Array.isArray(p.c) ? p.c : []).forEach(function(id){ done[String(id)] = true; });
+
+    var cur = store.days[k];
     var incoming = {
-      items: p.i.map(function(a){
-        var days = (typeof a[6] === "string" && a[6] !== "") ? a[6].split(",").map(function(x){ return +x; }) : null;
-        return { id: String(a[0]||uid()), emoji: a[1]||"📝", title: a[2]||"할 일",
-                 note: a[3]||"", mins: +a[4]||0, done: !!+a[5],
-                 days: days, daysLabel: a[7]||"" };
-      }),
+      done: done,
       kid: typeof p.s === "string" ? p.s : "",
       kidTs: +p.st || 0,
       mom: typeof p.m === "string" ? p.m : "",
       momTs: +p.mt || 0,
-      sets: day ? day.sets : 0,
+      sets: cur ? (cur.sets || 0) : 0,
       updated: +p.t || Date.now()
     };
-    if (day && dayHasContent(day) && day.updated > incoming.updated){
+    if (cur && hasContent(cur) && (cur.updated || 0) > incoming.updated){
       return "stale"; // 이 기기에 더 최신 '내용'이 있음 → 덮어쓰지 않음
     }
-    if (day){
+    if (cur){
       // 한마디·피드백은 각각 더 최근에 쓴 쪽을 남긴다
-      if ((day.kidTs||0) > incoming.kidTs){ incoming.kid = day.kid; incoming.kidTs = day.kidTs; }
-      if ((day.momTs||0) > incoming.momTs){ incoming.mom = day.mom; incoming.momTs = day.momTs; }
-      incoming.sets = Math.max(day.sets||0, incoming.sets||0);
+      if ((cur.kidTs || 0) > incoming.kidTs){ incoming.kid = cur.kid; incoming.kidTs = cur.kidTs; }
+      if ((cur.momTs || 0) > incoming.momTs){ incoming.mom = cur.mom; incoming.momTs = cur.momTs; }
+      incoming.sets = Math.max(cur.sets || 0, incoming.sets || 0);
     }
-    store.days[p.d] = incoming;
+    store.plan[dow] = items;
+    store.days[k] = incoming;
     saveStore();
     return true;
   }
-  function dayHasContent(d){
-    return !!d && (d.items.some(function(i){ return i.done; }) ||
-                   (d.kid||"").trim() !== "" || (d.mom||"").trim() !== "" ||
-                   (d.sets||0) > 0);
-  }
   function kakaoText(){
-    var d = getDay(viewDate, true);
-    var done = d.items.filter(function(i){ return i.done; }).length;
+    var k = viewDate;
+    var dow = dowOf(k);
+    var items = planOf(dow);
+    var doneN = countDone(k, dow);
+    var r = store.days[k] || { done:{}, kid:"", mom:"" };
     var lines = [];
-    lines.push("[고1 1등급 학습 플래너] " + prettyDate(viewDate));
+    lines.push("[고1 1등급 학습 플래너] " + prettyDate(k));
     lines.push("");
-    d.items.forEach(function(it){
+    items.forEach(function(it){
       var minTag = (it.mins && it.title.indexOf(it.mins + "분") < 0) ? " (" + it.mins + "분)" : "";
-      lines.push((it.done ? "✅ " : "⬜ ") + it.emoji + " " + it.title + minTag);
+      var on = r.done && r.done[it.id];
+      lines.push((on ? "✅ " : "⬜ ") + (it.emoji ? it.emoji + " " : "") + it.title + minTag);
     });
     lines.push("");
-    lines.push("📊 달성 " + done + "/" + d.items.length +
-      (d.items.length ? " (" + Math.round(done/d.items.length*100) + "%)" : ""));
-    if (d.kid && d.kid.trim()) { lines.push(""); lines.push("🌱 한마디: " + d.kid.trim()); }
-    if (d.mom && d.mom.trim()) { lines.push("💐 엄마 피드백: " + d.mom.trim()); }
+    lines.push("📊 달성 " + doneN + "/" + items.length +
+      (items.length ? " (" + Math.round(doneN/items.length*100) + "%)" : ""));
+    if (r.kid && r.kid.trim()) { lines.push(""); lines.push("🌱 한마디: " + r.kid.trim()); }
+    if (r.mom && r.mom.trim()) { lines.push("💐 엄마 피드백: " + r.mom.trim()); }
     lines.push("");
     lines.push("✔ 이번 주 달성률 " + $("weekRate").textContent + " · " + $("dday").textContent);
     lines.push("");
@@ -1264,11 +1566,11 @@
     stopTick(); releaseWakeLock(); saveTimer(); paintTimer();
     if (soundOn){ chime(); } else { vibrateAlarm(); }
     confetti(); celebrate();
-    var day = getDay(viewDate, true);
-    day.sets = (day.sets||0) + 1;
-    day.updated = Date.now();
+    var r = rec(todayKey(), true);
+    r.sets = (r.sets || 0) + 1;
+    r.updated = Date.now();
     saveStore();
-    renderList();
+    renderAll();
   }
 
   function confetti(){
@@ -1337,10 +1639,13 @@
     $("celClose").addEventListener("click", function(){ $("celebrate").hidden = true; });
     $("celCheck").addEventListener("click", function(){
       $("celebrate").hidden = true;
-      var day = getDay(viewDate, true);
-      var it = day.items.filter(function(x){ return x.id === "timer"; })[0];
-      if (it && !it.done){ it.done = true; touch(); renderAll(); }
-      else toast("타이머 항목은 이미 체크돼 있어요");
+      var td = todayDow(), k = todayKey();
+      if (idxOf(planOf(td), "timer") < 0){ toast("오늘 요일 계획에 타이머 항목이 없어요"); return; }
+      if (isDone(k, "timer")){ toast("타이머 항목은 이미 체크돼 있어요"); return; }
+      var r = rec(k, true);
+      r.done["timer"] = true;
+      r.updated = Date.now();
+      saveStore(); renderAll();
     });
     document.addEventListener("visibilitychange", function(){
       if (!document.hidden && timer.running){
@@ -1408,17 +1713,18 @@
     for (var i=6;i>=0;i--){
       var d = addDays(new Date(), -i);
       var k = dateKey(d);
-      var day = store.days[k];
-      var total = day && Array.isArray(day.items) ? day.items.length : 0;
-      var done = total ? day.items.filter(function(x){ return x.done; }).length : 0;
+      var dow = d.getDay();
+      var has = !!store.days[k];
+      var total = has ? planLen(dow) : 0;
+      var done = has ? countDone(k, dow) : 0;
       var pct = total ? Math.round(done/total*100) : 0;
-      if (total){ sum += pct; cnt++; }
+      if (has && total){ sum += pct; cnt++; }
 
       var row = document.createElement("div");
       row.className = "hrow";
       var lab = document.createElement("span");
       lab.className = "hday";
-      lab.textContent = (d.getMonth()+1) + "/" + d.getDate() + "(" + DOW[d.getDay()] + ")";
+      lab.textContent = (d.getMonth()+1) + "/" + d.getDate() + "(" + DOW[dow] + ")";
       var bar = document.createElement("div"); bar.className = "hbar";
       var fill = document.createElement("i"); fill.style.width = pct + "%";
       bar.appendChild(fill);
@@ -1493,7 +1799,11 @@
   function importShared(p){
     if (!p) return;
     var res = applyPayload(p);
-    if (p.d) viewDate = p.d;
+    if (p.d){
+      viewDate = p.d;
+      viewSel = dowOf(p.d);
+      editing = null;
+    }
     if (res === "stale"){
       showBanner("📩 공유 링크를 열었지만, 이 기기에 <b>더 최신 기록</b>이 있어서 내 기록을 그대로 뒀어요.");
     } else if (res === true){
@@ -1502,15 +1812,14 @@
     try { history.replaceState(null, "", location.pathname + location.search); } catch(e){}
     renderAll();
   }
-  function initFromHash(){
-    importShared(readHash());
-  }
+  function initFromHash(){ importShared(readHash()); }
   function bindHashChange(){
     window.addEventListener("hashchange", function(){ importShared(readHash()); });
   }
 
   /* ================= render all ================= */
   function renderAll(){
+    renderDayBar();
     renderHeader();
     renderSchedule();
     renderList();
@@ -1540,9 +1849,12 @@
       e.preventDefault();
       var t = $("addTitle").value.trim();
       if (!t){ toast("할 일을 적어 주세요"); $("addTitle").focus(); return; }
-      addItem(t, parseInt($("addMins").value,10) || 0);
+      var mins = clamp(parseInt($("addMins").value,10) || 0, 0, 300);
+      var days = (Array.isArray(addDaysSel) && addDaysSel.length) ? addDaysSel.slice() : [todayDow()];
+      addItem(t, mins, days);
       $("addTitle").value = ""; $("addMins").value = "";
-      toast("할 일을 추가했어요");
+      var names = days.map(function(d){ return DOW[d]; }).join("·");
+      toast(names + "요일에 추가했어요");
     });
     $("btnResetList").addEventListener("click", resetList);
 
@@ -1574,15 +1886,19 @@
     bindUI();
     paintSound();
     renderAll();
-    var seenNotice = false;
-    try{ seenNotice = localStorage.getItem(SOUND_NOTICE_KEY) === "1"; }catch(e){}
-    if (upgradedFromV1 && !readHash()){
-      showBanner("🆕 <b>학원 시간표·교재</b>에 맞춰 체크리스트를 새로 짰어요. 항목은 <b>✎</b> 로 고칠 수 있고, 목록이 바뀌었으면 체크리스트 아래 <b>기본 목록으로</b>를 누르면 이 새 목록으로 돌아와요.",
-        [{ label:"알겠어요", onClick:function(){} }]);
-    } else if (!seenNotice && !readHash()){
-      showBanner("🔔 <b>타이머 종료 알림음</b>이 또렷한 종소리로 바뀌었어요. 공부 시작 전에 <b>소리 테스트</b>를 눌러 폰 볼륨·무음 모드를 한 번만 확인해 두면 20분 뒤에도 확실히 들려요.",
-        [{ label:"확인했어요", onClick:function(){ try{ localStorage.setItem(SOUND_NOTICE_KEY, "1"); }catch(e){} } }]);
+
+    if (!readHash()){
+      var seenWeek = lsGet(WEEK_NOTICE_KEY) === "1";
+      var seenSound = lsGet(SOUND_NOTICE_KEY) === "1";
+      if (!seenWeek){
+        showBanner("🆕 <b>요일별로 정리했어요.</b> 이제 " + DOW[todayDow()] + "요일에 할 공부만 보여요. 위 <b>요일 칩</b>으로 다른 요일 계획도 넘겨 볼 수 있고, <b>전체</b>를 누르면 이번 주가 한눈에 보여요.",
+          [{ label:"확인했어요", onClick:function(){ lsSet(WEEK_NOTICE_KEY, "1"); } }]);
+      } else if (!seenSound){
+        showBanner("🔔 <b>타이머 종료 알림음</b>은 또렷한 종소리예요. 공부 시작 전에 <b>소리 테스트</b>를 눌러 폰 볼륨·무음 모드를 한 번만 확인해 두면 20분 뒤에도 확실히 들려요.",
+          [{ label:"확인했어요", onClick:function(){ lsSet(SOUND_NOTICE_KEY, "1"); } }]);
+      }
     }
+
     if (timer.running) startTick();
     // 모바일 브라우저는 사용자 제스처 안에서만 오디오를 열어 주므로, 첫 터치·클릭에서 미리 풀어 둔다.
     document.addEventListener("touchstart", function once(){ unlockAudio(); document.removeEventListener("touchstart", once); }, { passive:true });
