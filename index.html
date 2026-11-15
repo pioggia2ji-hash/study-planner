@@ -87,7 +87,8 @@
   }
   .dchip{
     flex:1;min-width:0;border:0;background:transparent;color:#8B7A6C;font-family:inherit;font-weight:800;
-    border-radius:12px;padding:6px 0 4px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:1px;
+    border-radius:12px;padding:5px 0 4px;cursor:pointer;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;gap:1px;min-height:42px;
     transition:background .18s,color .18s,box-shadow .18s;
   }
   .dchip .dl{font-size:13.5px;line-height:1.25;letter-spacing:-.02em;}
@@ -365,6 +366,29 @@
       <p class="hint" style="margin:9px 0 0;">위에서 요일을 고르면 <b>그 요일에 해야 할 공부만</b> 보여요. 학원 가는 날(화·목·토)은 <b>학원 숙제·오답 정리</b> 위주로, 학원 없는 날은 <b>복습</b>으로 채워요.</p>
     </div>
 
+    <!-- checklist -->
+    <div class="card">
+      <div class="card-h">
+        <div class="card-t"><span class="ico">✅</span><span id="listTitle">오늘의 학습 체크리스트</span></div>
+        <span class="card-sub" id="listSummary">0/0</span>
+      </div>
+      <div class="progress" id="dayProg"><i id="dayBarFill"></i></div>
+      <div id="listHost"></div>
+      <form class="add-row" id="addForm" autocomplete="off">
+        <input type="text" id="addTitle" placeholder="할 일 추가 (예: 영어 단어 30개)" maxlength="60" aria-label="새 할 일 이름">
+        <input type="number" id="addMins" placeholder="분" min="0" max="300" inputmode="numeric" aria-label="예상 시간(분)">
+        <button class="btn btn-mint btn-sm" type="submit">+ 추가</button>
+      </form>
+      <div class="daypick-wrap" id="addDaysWrap">
+        <span class="daypick-label">넣을 요일</span>
+        <div class="daypick" id="addDays" role="group" aria-label="추가할 요일"></div>
+      </div>
+      <div class="row-between" style="margin-top:10px;">
+        <span class="hint" id="listHint" style="margin:0;"></span>
+        <button class="mini" id="btnResetList" type="button">기본 목록으로</button>
+      </div>
+    </div>
+
     <!-- timer -->
     <div class="card">
       <div class="card-h">
@@ -405,29 +429,6 @@
           <button class="sound-toggle" id="btnSoundToggle" type="button" aria-pressed="true">🔔 소리 켜짐</button>
         </div>
         <p class="sound-hint" id="soundHint">시작 전에 <b>🔔 소리 테스트</b>로 폰 볼륨·무음 모드를 확인해 두세요. 타이머가 도는 동안은 화면이 꺼지지 않게 잡아 둘게요(지원 기기).</p>
-      </div>
-    </div>
-
-    <!-- checklist -->
-    <div class="card">
-      <div class="card-h">
-        <div class="card-t"><span class="ico">✅</span><span id="listTitle">오늘의 학습 체크리스트</span></div>
-        <span class="card-sub" id="listSummary">0/0</span>
-      </div>
-      <div class="progress" id="dayProg"><i id="dayBarFill"></i></div>
-      <div id="listHost"></div>
-      <form class="add-row" id="addForm" autocomplete="off">
-        <input type="text" id="addTitle" placeholder="할 일 추가 (예: 영어 단어 30개)" maxlength="60" aria-label="새 할 일 이름">
-        <input type="number" id="addMins" placeholder="분" min="0" max="300" inputmode="numeric" aria-label="예상 시간(분)">
-        <button class="btn btn-mint btn-sm" type="submit">+ 추가</button>
-      </form>
-      <div class="daypick-wrap" id="addDaysWrap">
-        <span class="daypick-label">넣을 요일</span>
-        <div class="daypick" id="addDays" role="group" aria-label="추가할 요일"></div>
-      </div>
-      <div class="row-between" style="margin-top:10px;">
-        <span class="hint" id="listHint" style="margin:0;"></span>
-        <button class="mini" id="btnResetList" type="button">기본 목록으로</button>
       </div>
     </div>
 
