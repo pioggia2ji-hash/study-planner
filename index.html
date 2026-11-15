@@ -319,7 +319,7 @@
     <!-- timer -->
     <div class="card">
       <div class="card-h">
-        <div class="card-t"><span class="ico">⏱️</span>20분 집중 타이머</div>
+        <div class="card-t"><span class="ico">⏱️</span><span id="tCardTitle">20분 집중 타이머</span></div>
         <span class="card-sub" id="totalSessions">오늘 0세트</span>
       </div>
       <div class="timer-wrap">
@@ -341,10 +341,11 @@
             <div id="tState">준비됐어요</div>
           </div>
         </div>
-        <div class="presets" id="presets">
-          <button class="preset" data-min="15">15분</button>
-          <button class="preset on" data-min="20">20분</button>
-          <button class="preset" data-min="40">40분</button>
+        <div class="presets" id="presets" role="group" aria-label="집중 시간 선택">
+          <button class="preset on" data-min="20" aria-pressed="true">20분</button>
+          <button class="preset" data-min="30" aria-pressed="false">30분</button>
+          <button class="preset" data-min="40" aria-pressed="false">40분</button>
+          <button class="preset" data-min="60" aria-pressed="false">60분</button>
         </div>
         <div class="timer-btns">
           <button class="btn btn-primary" id="btnStart">시작</button>
@@ -504,7 +505,7 @@
         "공통수학1 2회독 (틀린 문제만 다시)",
         "40분 실전 세트 풀기 — 시간 재고 끊기지 않게",
         "수행평가 대비 독서·진로탐구 도서 2권 읽고 기록 남기기",
-        "윈터스쿨(1개월) 기간엔 학원 숙제 소화 + 통합과학 인강 30분으로 유지"
+        "윈터스쿨(1/1~1개월) 기간엔 학원 숙제 소화 + 통합과학 인강 30분으로 유지"
       ]},
     { key:"s3", tag:"3단계", cls:"s3", title:"입학 직후 자리잡기", period:"2027년 3월 ~",
       items:[
@@ -1065,7 +1066,13 @@
   }
 
   /* ================= timer ================= */
+  var TIMER_PRESETS = [20, 30, 40, 60]; // 분 단위 선택지
   var timer = { total: 1200, left: 1200, running: false, endAt: 0, tick: null };
+
+  function normalizeTotal(min){
+    var m = Math.round(+min || 20);
+    return TIMER_PRESETS.indexOf(m) >= 0 ? m * 60 : 1200;
+  }
 
   function loadTimer(){
     try{
@@ -1073,13 +1080,18 @@
       if (!raw) return;
       var t = JSON.parse(raw);
       if (!t) return;
-      timer.total = t.total || 1200;
+      timer.total = normalizeTotal((t.total || 1200) / 60);
       if (t.running && t.endAt){
         var left = Math.round((t.endAt - Date.now())/1000);
-        if (left > 0){ timer.left = left; timer.endAt = t.endAt; timer.running = true; }
-        else { timer.left = 0; timer.running = false; }
+        if (left > 0){
+          timer.running = true;
+          timer.left = Math.min(left, timer.total);
+          timer.endAt = Date.now() + timer.left * 1000;
+        } else {
+          timer.left = 0; timer.running = false; timer.endAt = 0;
+        }
       } else {
-        timer.left = typeof t.left === "number" ? t.left : timer.total;
+        timer.left = typeof t.left === "number" ? Math.min(Math.max(0, t.left), timer.total) : timer.total;
       }
     }catch(e){}
   }
@@ -1140,8 +1152,13 @@
       st.textContent = "시작";
       st.classList.add("btn-primary"); st.classList.remove("btn-ghost");
     }
+    var totalMin = Math.round(timer.total / 60);
+    var ttl = $("tCardTitle");
+    if (ttl) ttl.textContent = totalMin + "분 집중 타이머";
     Array.prototype.forEach.call(document.querySelectorAll(".preset"), function(b){
-      b.classList.toggle("on", (+b.dataset.min) * 60 === timer.total);
+      var on = (+b.dataset.min) * 60 === timer.total;
+      b.classList.toggle("on", on);
+      b.setAttribute("aria-pressed", on ? "true" : "false");
     });
   }
 
@@ -1212,9 +1229,12 @@
     Array.prototype.forEach.call(document.querySelectorAll(".preset"), function(b){
       b.addEventListener("click", function(){
         var min = +b.dataset.min;
+        if (min * 60 === timer.total && !timer.running && timer.left === timer.total) return;
+        var wasRunning = timer.running;
         timer.total = min * 60; timer.left = timer.total;
         timer.running = false; timer.endAt = 0;
         stopTick(); saveTimer(); paintTimer();
+        toast(wasRunning ? (min + "분으로 바꾸고 새로 시작할 준비를 했어요") : (min + "분으로 설정했어요"));
       });
     });
     $("celClose").addEventListener("click", function(){ $("celebrate").hidden = true; });
