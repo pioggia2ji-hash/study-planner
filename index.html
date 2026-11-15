@@ -868,7 +868,8 @@
     lines.push("[고1 1등급 학습 플래너] " + prettyDate(viewDate));
     lines.push("");
     d.items.forEach(function(it){
-      lines.push((it.done ? "✅ " : "⬜ ") + it.emoji + " " + it.title + (it.mins ? " (" + it.mins + "분)" : ""));
+      var minTag = (it.mins && it.title.indexOf(it.mins + "분") < 0) ? " (" + it.mins + "분)" : "";
+      lines.push((it.done ? "✅ " : "⬜ ") + it.emoji + " " + it.title + minTag);
     });
     lines.push("");
     lines.push("📊 달성 " + done + "/" + d.items.length +
@@ -877,6 +878,8 @@
     if (d.mom && d.mom.trim()) { lines.push("💐 엄마 피드백: " + d.mom.trim()); }
     lines.push("");
     lines.push("✔ 이번 주 달성률 " + $("weekRate").textContent + " · " + $("dday").textContent);
+    lines.push("");
+    lines.push("📎 " + location.origin + location.pathname);
     return lines.join("\n");
   }
   function copyText(text){
