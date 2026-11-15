@@ -1456,7 +1456,7 @@
     bindUI();
     renderAll();
     if (upgradedFromV1 && !readHash()){
-      showBanner("🆕 <b>학원 시간표·교재</b>에 맞춰 체크리스트를 새로 짰어요. 오늘부터 이 목록으로 쓰시고, 항목 이름·시간은 <b>✎</b> 로 언제든 고칠 수 있어요.",
+      showBanner("🆕 <b>학원 시간표·교재</b>에 맞춰 체크리스트를 새로 짰어요. 항목은 <b>✎</b> 로 고칠 수 있고, 목록이 바뀌었으면 체크리스트 아래 <b>기본 목록으로</b>를 누르면 이 새 목록으로 돌아와요.",
         [{ label:"알겠어요", onClick:function(){} }]);
     }
     if (timer.running) startTick();
