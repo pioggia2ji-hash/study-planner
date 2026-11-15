@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ko" data-app-ver="2026-11-15-v4">
+<html lang="ko" data-app-ver="2026-11-15-v5">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -60,6 +60,13 @@
     display:inline-flex;align-items:center;gap:4px;font-weight:800;font-size:13px;
     background:#fff;border:1px solid var(--line2);color:#C4705C;border-radius:999px;padding:3px 10px;
   }
+  .sync-pill{
+    display:inline-flex;align-items:center;gap:4px;font-weight:800;font-size:11.5px;
+    background:var(--mint-soft);border:1px solid #BFE3CF;color:#3E7A5C;border-radius:999px;
+    padding:3px 9px;cursor:pointer;font-family:inherit;line-height:1.5;
+  }
+  .sync-pill.pending{background:var(--sun-soft);border-color:#EFD9A6;color:#96712A;}
+  .sync-pill.err{background:#FDEBE6;border-color:#EFC2B4;color:#B4553F;}
   .stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px;}
   .stat{
     background:var(--paper);border:1px solid var(--line);border-radius:16px;
@@ -334,6 +341,9 @@
       <span class="pill" id="dday">D-—</span>
       <span class="pill" id="weekdayPill" style="background:var(--lav-soft);border-color:#DFD4F2;color:#6B5590;">—</span>
     </div>
+    <div class="hd-row" style="margin-top:7px;">
+      <button class="sync-pill pending" id="syncPill" type="button" aria-live="polite">☁️ 연결 중…</button>
+    </div>
     <div class="stat-grid">
       <div class="stat"><b id="todayRate">0%</b><span>오늘 달성</span></div>
       <div class="stat"><b id="weekRate">0%</b><span>이번 주 달성률</span></div>
@@ -458,7 +468,7 @@
         <button class="btn btn-sun" id="btnCopyKakao">카톡 공유용 요약 복사</button>
         <button class="btn btn-lav" id="btnCopyLink">현재 상태 링크로 공유</button>
       </div>
-      <p class="hint">링크를 받은 사람이 열면 오늘의 체크 상태·한마디·피드백이 그대로 나타나요. 서버 없이 링크 안에 내용이 담기는 방식이에요.</p>
+      <p class="hint">이제 두 폰이 <b>구글 시트와 자동으로 맞춰져요</b>. 체크·한마디·피드백을 고치면 상대 폰에 몇 초 안에 그대로 나타나요. 아래 링크는 한 번만 복사해 다른 폰에서 열어 두면 돼요.</p>
     </div>
 
   </section>
@@ -495,7 +505,7 @@
 
   <footer>
     아이와 보호자가 함께 쓰는 플래너<br>
-    기록은 이 기기(브라우저)에만 저장돼요 · 공유는 링크로만
+    기록은 구글 시트와 실시간으로 맞춰져요 · 링크로도 공유할 수 있어요
   </footer>
 </div>
 
@@ -655,6 +665,8 @@
      체크는 그날 기록으로 남고, 다음 주 같은 요일에 같은 계획이 다시 나온다.
   */
   var store = loadStore();
+  var planSnap = JSON.stringify(store.plan);
+  var roadmapSnap = JSON.stringify(store.roadmap);
   var viewSel = todayDow();     // 0~6 또는 "all"
   var viewDate = todayKey();    // 지금 보고 있는 날짜
   var editing = null;           // { id, date } 편집 중인 항목
@@ -677,7 +689,7 @@
     });
   }
   function freshStore(){
-    var s = { ver:3, plan:{}, days:{}, roadmap:{} };
+    var s = { ver:3, plan:{}, days:{}, roadmap:{}, planTs:{}, roadmapTs:0 };
     DAY_ORDER.forEach(function(d){ s.plan[d] = defaultPlanFor(d); });
     return s;
   }
@@ -692,6 +704,8 @@
         if (p && typeof p === "object" && p.plan && p.days){
           var s = freshStore();
           s.roadmap = (p.roadmap && typeof p.roadmap === "object") ? p.roadmap : {};
+          s.planTs = (p.planTs && typeof p.planTs === "object") ? p.planTs : {};
+          s.roadmapTs = +p.roadmapTs || 0;
           DAY_ORDER.forEach(function(d){
             s.plan[d] = Array.isArray(p.plan[d]) ? cloneItems(p.plan[d]) : defaultPlanFor(d);
           });
@@ -740,7 +754,23 @@
     return fresh;
   }
 
+  // 이 기기의 localStorage에 저장하고, 계획·로드맵이 바뀌었으면 그 시각을 남긴다
+  // (여러 기기가 서로의 변경을 비교해 최신 것만 받아들이는 기준이 된다).
   function saveStore(){
+    var now = Date.now();
+    var p = JSON.stringify(store.plan);
+    if (p !== planSnap){
+      planSnap = p;
+      store.planTs = store.planTs || {};
+      DAY_ORDER.forEach(function(d){ store.planTs[d] = now; });
+    }
+    var r = JSON.stringify(store.roadmap);
+    if (r !== roadmapSnap){ roadmapSnap = r; store.roadmapTs = now; }
+    persistStore();
+    syncSeq++;
+    markDirty();
+  }
+  function persistStore(){
     if (!lsSet(STORE_KEY, JSON.stringify(store))) toast("저장 공간이 부족해 저장하지 못했어요");
   }
 
@@ -1252,8 +1282,9 @@
   function fbDate(){ return (viewSel === "all") ? todayKey() : viewDate; }
   function renderFeedback(){
     var r = rec(fbDate(), false);
-    $("taKid").value = (r && r.kid) || "";
-    $("taMom").value = (r && r.mom) || "";
+    // 상대 폰에서 받은 값으로 다시 그리되, 지금 타이핑 중인 칸은 건드리지 않는다
+    if (document.activeElement !== $("taKid")) $("taKid").value = (r && r.kid) || "";
+    if (document.activeElement !== $("taMom")) $("taMom").value = (r && r.mom) || "";
   }
   function bindFeedback(){
     $("taKid").addEventListener("input", function(e){
@@ -1811,12 +1842,229 @@
     window.addEventListener("hashchange", function(){ importShared(readHash()); });
   }
 
+  /* ================= realtime sync =================
+     구글 시트(_동기화)에 상태를 올리고 6초마다 받아 오는 양방향 동기화.
+     - 변경 → 350ms 디바운스로 바로 POST
+     - 폴링·포커스·화면 복귀 시 GET으로 상대 폰 변경 반영
+     - 입력 중인 칸은 덮어쓰지 않는다
+  */
+  var SYNC_URL = "https://script.google.com/macros/s/AKfycbxgOd01yVEMKTUj7uHLtbzC4I5T-x-rgzTxfCIeFNYTGxKWTX0JeQEKIRCOR_EGlBWQ8A/exec";
+  var SYNC_TOKEN = "swcb22xyzg74ovzc";
+  var SYNC_POLL_MS = 6000;
+  var syncSeq = 0;               // 로컬 변경 횟수
+  var syncReady = false;         // 첫 로드·병합이 끝났는지
+  var syncDirty = false;         // 아직 서버에 못 올린 변경이 있는지
+  var syncBusy = false;
+  var syncAgain = false;
+  var syncServerAt = 0;          // 서버가 마지막으로 알려준 updatedAt
+  var syncLastOk = 0;
+  var syncState = "boot";
+  var syncTimer = null, pollTimer = null;
+
+  function snapshot(){
+    return {
+      ver: 3,
+      plan: store.plan,
+      days: store.days,
+      roadmap: store.roadmap,
+      planTs: store.planTs || {},
+      roadmapTs: store.roadmapTs || 0
+    };
+  }
+  function setSyncUI(state){
+    syncState = state;
+    var el = $("syncPill");
+    if (!el) return;
+    var msg = {
+      boot:    "☁️ 연결 중…",
+      ok:      "☁️ 실시간 동기화 중",
+      pending: "☁️ 저장 중…",
+      saved:   "☁️ 방금 저장됨",
+      err:     "☁️ 오프라인 · 이 기기에 저장"
+    }[state] || "☁️ 실시간 동기화 중";
+    el.textContent = msg;
+    el.className = "sync-pill" + (state === "err" ? " err" : (state === "pending" || state === "boot" ? " pending" : ""));
+    el.title = syncLastOk
+      ? ("마지막으로 서버와 맞춘 시각 " + new Date(syncLastOk).toLocaleTimeString("ko-KR"))
+      : "구글 시트와 연결하는 중이에요";
+  }
+  function markDirty(){
+    syncDirty = true;
+    if (!syncReady) return;
+    setSyncUI("pending");
+    clearTimeout(syncTimer);
+    syncTimer = setTimeout(function(){ pushState(false); }, 350);
+  }
+
+  function pushState(force){
+    if (!syncReady) return;
+    if (syncBusy){ syncAgain = true; return; }
+    syncBusy = true;
+    syncAgain = false;
+    var seq = syncSeq;
+    var body = JSON.stringify({
+      token: SYNC_TOKEN,
+      state: snapshot(),
+      baseUpdatedAt: syncServerAt,
+      force: !!force
+    });
+    fetch(SYNC_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: body
+    }).then(function(r){ return r.json(); }).then(function(res){
+      syncBusy = false;
+      if (!res || !res.ok){ setSyncUI("err"); return; }
+      if (res.conflict){
+        mergeRemote(res.state);
+        syncServerAt = +res.updatedAt || syncServerAt;
+        syncDirty = true;
+        renderAll(true);
+        pushState(true);
+        return;
+      }
+      syncServerAt = +res.updatedAt || syncServerAt;
+      syncLastOk = Date.now();
+      if (syncSeq === seq){ syncDirty = false; setSyncUI("saved"); }
+      else { pushState(false); return; }
+      setTimeout(function(){ if (syncState === "saved" && !syncDirty) pollState(false); }, 2200);
+      if (syncAgain) pushState(false);
+    }).catch(function(){
+      syncBusy = false;
+      setSyncUI("err");
+      // 응답을 못 받아도 서버에는 들어갔을 수 있으니 곷바로 확인해 본다
+      setTimeout(function(){ pollState(true); }, 1500);
+      if (syncAgain) setTimeout(function(){ pushState(false); }, 2500);
+    });
+  }
+
+  function pollState(userInitiated){
+    if (!syncReady) return;
+    if (document.hidden && !userInitiated) return;
+    fetch(SYNC_URL + "?token=" + encodeURIComponent(SYNC_TOKEN) + "&t=" + Date.now(), { cache: "no-store" })
+      .then(function(r){ return r.json(); }).then(function(res){
+        if (!res || !res.ok){ setSyncUI("err"); return; }
+        syncLastOk = Date.now();
+        if (res.empty){
+          if (syncDirty) pushState(true); else if (syncState !== "saved") setSyncUI("ok");
+          return;
+        }
+        if ((+res.updatedAt || 0) <= syncServerAt){
+          if (syncState === "boot" || syncState === "err") setSyncUI("ok");
+          return;
+        }
+        var before = JSON.stringify(snapshot());
+        mergeRemote(res.state);
+        syncServerAt = +res.updatedAt || syncServerAt;
+        var after = JSON.stringify(snapshot());
+        if (after !== before) renderAll(true);
+        // 서버에 이미 내가 올린 내용이 그대로 있으면 '저장됨'으로 본다
+        if (syncDirty && JSON.stringify(res.state) === after){
+          syncDirty = false;
+          syncLastOk = Date.now();
+          setSyncUI("saved");
+          return;
+        }
+        if (syncDirty) pushState(true);
+        else if (syncState !== "pending" && syncState !== "saved") setSyncUI("ok");
+      }).catch(function(){ setSyncUI("err"); });
+  }
+
+  // 서버 상태를 이 기기에 합친다 — 같은 항목은 더 최근에 바뀐 쪽을 남긴다.
+  function mergeRemote(remote){
+    if (!remote || typeof remote !== "object") return;
+    var rPlanTs = remote.planTs || {};
+    store.planTs = store.planTs || {};
+    DAY_ORDER.forEach(function(d){
+      var rt = +rPlanTs[d] || 0, lt = +store.planTs[d] || 0;
+      var rp = remote.plan ? remote.plan[d] : null;
+      if (Array.isArray(rp) && (rt > lt || (!rt && !lt))){
+        store.plan[d] = cloneItems(rp);
+        store.planTs[d] = rt;
+      }
+    });
+    var rDays = remote.days || {};
+    Object.keys(rDays).forEach(function(k){
+      var r = rDays[k];
+      if (!r || typeof r !== "object") return;
+      var inc = normalizeRec({
+        done: (r.done && typeof r.done === "object") ? r.done : {},
+        kid: typeof r.kid === "string" ? r.kid : "",
+        mom: typeof r.mom === "string" ? r.mom : "",
+        kidTs: +r.kidTs || 0,
+        momTs: +r.momTs || 0,
+        sets: +r.sets || 0,
+        updated: +r.updated || 0
+      });
+      var cur = store.days[k];
+      if (!cur){ store.days[k] = inc; return; }
+      normalizeRec(cur);
+      if ((inc.updated || 0) > (cur.updated || 0)){ cur.done = inc.done; cur.updated = inc.updated; }
+      if ((inc.kidTs || 0) > (cur.kidTs || 0)){ cur.kid = inc.kid; cur.kidTs = inc.kidTs; }
+      if ((inc.momTs || 0) > (cur.momTs || 0)){ cur.mom = inc.mom; cur.momTs = inc.momTs; }
+      if ((inc.sets || 0) > (cur.sets || 0)) cur.sets = inc.sets;
+    });
+    var rRt = +remote.roadmapTs || 0;
+    if (remote.roadmap && typeof remote.roadmap === "object" &&
+        (rRt > (+store.roadmapTs || 0) || (!rRt && !store.roadmapTs))){
+      store.roadmap = remote.roadmap;
+      store.roadmapTs = rRt;
+    }
+    // 병합 결과는 저장만 하고 '새 변경'으로 치지 않는다 (계획 시각도 그대로 둔다)
+    persistStore();
+    planSnap = JSON.stringify(store.plan);
+    roadmapSnap = JSON.stringify(store.roadmap);
+  }
+
+  function bootSync(){
+    setSyncUI("boot");
+    fetch(SYNC_URL + "?token=" + encodeURIComponent(SYNC_TOKEN) + "&boot=1&t=" + Date.now(), { cache: "no-store" })
+      .then(function(r){ return r.json(); }).then(function(res){
+        if (!res || !res.ok) throw new Error("sync");
+        syncLastOk = Date.now();
+        if (res.empty || !res.state){
+          syncReady = true;
+          pushState(true);            // 첫 기기가 서버에 올린다
+        } else {
+          mergeRemote(res.state);
+          syncServerAt = +res.updatedAt || 0;
+          syncReady = true;
+          renderAll(true);
+          // 병합 결과가 서버에 있는 것과 다르면(이 기기에만 있는 기록·계획) 서버에 올려 둔을 맞춘다
+          if (syncDirty || JSON.stringify(res.state) !== JSON.stringify(snapshot())){
+            syncDirty = true;
+            pushState(true);
+          } else setSyncUI("ok");
+        }
+        startPolling();
+      }).catch(function(){
+        // 서버에 못 붙어도 플래너 자체는 그대로 쓸 수 있게 둔다
+        syncReady = true;
+        setSyncUI("err");
+        startPolling();
+      });
+  }
+  function startPolling(){
+    clearInterval(pollTimer);
+    pollTimer = setInterval(function(){ pollState(false); }, SYNC_POLL_MS);
+  }
+  function bindSync(){
+    var el = $("syncPill");
+    if (el) el.addEventListener("click", function(){ syncLastOk = 0; setSyncUI("boot"); pollState(true); if (syncDirty) pushState(false); });
+    document.addEventListener("visibilitychange", function(){
+      if (!document.hidden){ pollState(true); if (syncDirty) pushState(false); }
+    });
+    window.addEventListener("focus", function(){ pollState(true); });
+    window.addEventListener("online", function(){ pollState(true); if (syncDirty) pushState(false); });
+    bootSync();
+  }
+
   /* ================= render all ================= */
-  function renderAll(){
+  function renderAll(preserveTyping){
     renderDayBar();
     renderHeader();
     renderSchedule();
-    renderList();
+    if (!(preserveTyping && editing)) renderList();
     renderFeedback();
     renderRoadmap();
     renderHistory();
@@ -1880,6 +2128,7 @@
     bindUI();
     paintSound();
     renderAll();
+    bindSync();
 
     if (!readHash() && !importedOnce){
       var seenWeek = lsGet(WEEK_NOTICE_KEY) === "1";
