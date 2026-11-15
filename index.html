@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ko" data-app-ver="2026-11-15-v2">
+<html lang="ko" data-app-ver="2026-11-15-v3">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -113,6 +113,17 @@
   }
   .preset.on{background:var(--coral);border-color:var(--coral);color:#fff;}
   .timer-btns{display:flex;gap:8px;width:100%;}
+  .sound-row{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;flex-wrap:wrap;}
+  .sound-test,.sound-toggle{
+    border:1px solid var(--line2);background:#fff;color:#8A7566;font-family:inherit;font-weight:800;
+    font-size:12.5px;border-radius:999px;padding:8px 14px;min-height:38px;cursor:pointer;
+    transition:transform .08s, background .15s, border-color .15s;
+  }
+  .sound-test:active,.sound-toggle:active{transform:scale(.97);}
+  .sound-test{background:var(--sun-soft);border-color:#F2E0B4;color:#8A6A20;}
+  .sound-toggle[aria-pressed="true"]{background:var(--mint-soft);border-color:#CFE7D8;color:#3F7A5C;}
+  .sound-toggle[aria-pressed="false"]{background:#fff;color:#B0A093;}
+  .sound-hint{font-size:11.5px;color:var(--ink-soft);margin:0;text-align:center;line-height:1.45;}
   .btn{
     flex:1;border:0;border-radius:14px;font-family:inherit;font-weight:800;font-size:15px;
     padding:14px 10px;cursor:pointer;min-height:var(--tap);transition:transform .08s, filter .15s;
@@ -351,6 +362,11 @@
           <button class="btn btn-primary" id="btnStart">시작</button>
           <button class="btn btn-ghost" id="btnReset">리셋</button>
         </div>
+        <div class="sound-row">
+          <button class="sound-test" id="btnSoundTest" type="button">🔔 소리 테스트</button>
+          <button class="sound-toggle" id="btnSoundToggle" type="button" aria-pressed="true">🔔 소리 켜짐</button>
+        </div>
+        <p class="sound-hint" id="soundHint">시작 전에 <b>🔔 소리 테스트</b>로 폰 볼륨·무음 모드를 확인해 두세요. 타이머가 도는 동안은 화면이 꺼지지 않게 잡아 둘게요(지원 기기).</p>
       </div>
     </div>
 
@@ -463,6 +479,8 @@
   var STORE_KEY = "g1-planner:v2";
   var OLD_STORE_KEY = "g1-planner:v1";
   var TIMER_KEY = "g1-planner:timer";
+  var SOUND_KEY = "g1-planner:sound";
+  var SOUND_NOTICE_KEY = "g1-planner:sound-notice";
   var ENTRY_DATE = new Date(2027, 2, 2); // 고1 입학 시점(3월 초)
   var RING_LEN = 2 * Math.PI * 92;
   var upgradedFromV1 = false;
@@ -1103,29 +1121,96 @@
     }catch(e){}
   }
 
+  /* ================= audio (타이머 종료 알림음) ================= */
   var audioCtx = null;
-  function ensureAudio(){
+  var wakeLock = null;
+  var soundOn = loadSound();
+
+  function loadSound(){
+    try{ var v = localStorage.getItem(SOUND_KEY); return v === null ? true : v === "1"; }catch(e){ return true; }
+  }
+  function saveSound(){ try{ localStorage.setItem(SOUND_KEY, soundOn ? "1" : "0"); }catch(e){} }
+  function paintSound(){
+    var b = $("btnSoundToggle");
+    if (!b) return;
+    b.setAttribute("aria-pressed", soundOn ? "true" : "false");
+    b.textContent = soundOn ? "🔔 소리 켜짐" : "🔕 소리 꺼짐";
+  }
+
+  function getAudio(){
     var AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return null;
-    if (!audioCtx) { try{ audioCtx = new AC(); }catch(e){ return null; } }
-    if (audioCtx.state === "suspended") { try{ audioCtx.resume(); }catch(e){} }
+    if (!audioCtx){ try{ audioCtx = new AC(); }catch(e){ return null; } }
+    if (!audioCtx) return null;
+    if (audioCtx.state !== "running"){
+      try{ var p = audioCtx.resume(); if (p && p.catch) p.catch(function(){}); }catch(e){}
+    }
     return audioCtx;
   }
+  // 모바일 브라우저(Android Chrome·iOS Safari)는 사용자가 누른 그 순간에 만든 AudioContext만
+  // 20~60분 뒤에도 소리를 내게 해 준다. 시작 버튼·프리셋·테스트 누를 때 이 함수를 불러 잠금을 풀어 둔다.
+  function unlockAudio(){
+    var ctx = getAudio();
+    if (!ctx) return null;
+    try{
+      var buf = ctx.createBuffer(1, 1, 22050);   // 무음 1샘플 재생 = 오디오 잠금 해제
+      var src = ctx.createBufferSource();
+      src.buffer = buf; src.connect(ctx.destination); src.start(0);
+    }catch(e){}
+    return ctx;
+  }
+
+  function vibrateAlarm(){
+    if (navigator.vibrate){ try{ navigator.vibrate([200, 100, 200, 100, 300]); }catch(e){} }
+  }
+
+  // 맑은 3화음 차임벨: 도-미-솔-도 를 두 번 (약 2초)
   function chime(){
-    var ctx = ensureAudio();
-    if (!ctx) return;
-    var now = ctx.currentTime;
-    [523.25, 659.25, 783.99, 1046.50].forEach(function(f, i){
-      var o = ctx.createOscillator(), g = ctx.createGain();
-      o.type = "sine"; o.frequency.value = f;
-      var t0 = now + i * 0.19;
-      g.gain.setValueAtTime(0.0001, t0);
-      g.gain.exponentialRampToValueAtTime(0.20, t0 + 0.06);
-      g.gain.exponentialRampToValueAtTime(0.0001, t0 + 1.5);
-      o.connect(g); g.connect(ctx.destination);
-      o.start(t0); o.stop(t0 + 1.6);
+    var ctx = unlockAudio();
+    if (!ctx) return false;
+    var now = ctx.currentTime + 0.03;
+    var master = ctx.createGain();
+    master.gain.value = 0.75;
+    master.connect(ctx.destination);
+    var notes = [523.25, 659.25, 783.99, 1046.50];   // C5·E5·G5·C6
+    var plan = [];
+    var i;
+    for (i = 0; i < 4; i++) plan.push({ f: notes[i], t: i * 0.16, d: 0.85, v: 0.26 });
+    for (i = 0; i < 4; i++) plan.push({ f: notes[i], t: 0.72 + i * 0.16, d: i === 3 ? 1.15 : 0.85, v: i === 3 ? 0.30 : 0.24 });
+    plan.forEach(function(n){
+      var t0 = now + n.t;
+      var env = ctx.createGain();
+      env.gain.setValueAtTime(0.0001, t0);
+      env.gain.exponentialRampToValueAtTime(n.v, t0 + 0.012);
+      env.gain.exponentialRampToValueAtTime(n.v * 0.45, t0 + 0.22);
+      env.gain.exponentialRampToValueAtTime(0.0001, t0 + n.d);
+      env.connect(master);
+      var o1 = ctx.createOscillator(), o2 = ctx.createOscillator(), g2 = ctx.createGain();
+      o1.type = "sine";     o1.frequency.value = n.f;
+      o2.type = "triangle"; o2.frequency.value = n.f * 2;   // 배음을 얹어 종소리 느낌
+      g2.gain.value = 0.18;
+      o1.connect(env); o2.connect(g2); g2.connect(env);
+      o1.start(t0); o2.start(t0);
+      o1.stop(t0 + n.d + 0.05); o2.stop(t0 + n.d + 0.05);
     });
-    if (navigator.vibrate) { try{ navigator.vibrate([130, 90, 130]); }catch(e){} }
+    vibrateAlarm();
+    return true;
+  }
+
+  // 타이머가 도는 동안 화면이 꺼져 JS가 멈추면 알림음이 못 울린다 → 지원 기기에서 화면 잠금을 막아 둔다.
+  function requestWakeLock(){
+    if (!navigator.wakeLock || !navigator.wakeLock.request) return;
+    try{
+      navigator.wakeLock.request("screen").then(function(s){
+        wakeLock = s;
+        if (s && s.addEventListener) s.addEventListener("release", function(){ wakeLock = null; });
+      }).catch(function(){});
+    }catch(e){}
+  }
+  function releaseWakeLock(){
+    if (!wakeLock) return;
+    try{ var p = wakeLock.release(); if (p && p.catch) p.catch(function(){}); }catch(e){}
+    wakeLock = null;
   }
 
   function paintTimer(){
@@ -1176,8 +1261,9 @@
 
   function finishTimer(){
     timer.running = false; timer.left = 0; timer.endAt = 0;
-    stopTick(); saveTimer(); paintTimer();
-    chime(); confetti(); celebrate();
+    stopTick(); releaseWakeLock(); saveTimer(); paintTimer();
+    if (soundOn){ chime(); } else { vibrateAlarm(); }
+    confetti(); celebrate();
     var day = getDay(viewDate, true);
     day.sets = (day.sets||0) + 1;
     day.updated = Date.now();
@@ -1210,24 +1296,35 @@
 
   function bindTimer(){
     $("btnStart").addEventListener("click", function(){
-      ensureAudio();
+      unlockAudio();   // 이 클릭 안에서 풀어 두면 20~60분 뒤 종료음이 막히지 않는다
       if (timer.running){
         timer.left = Math.max(0, Math.round((timer.endAt - Date.now())/1000));
         timer.running = false; timer.endAt = 0;
-        stopTick(); saveTimer(); paintTimer();
+        stopTick(); releaseWakeLock(); saveTimer(); paintTimer();
         return;
       }
       if (timer.left <= 0) timer.left = timer.total;
       timer.running = true;
       timer.endAt = Date.now() + timer.left * 1000;
-      saveTimer(); startTick(); paintTimer();
+      saveTimer(); startTick(); paintTimer(); requestWakeLock();
     });
     $("btnReset").addEventListener("click", function(){
       timer.running = false; timer.endAt = 0; timer.left = timer.total;
-      stopTick(); saveTimer(); paintTimer();
+      stopTick(); releaseWakeLock(); saveTimer(); paintTimer();
+    });
+    $("btnSoundTest").addEventListener("click", function(){
+      unlockAudio();
+      if (!chime()){ toast("이 브라우저에서는 소리를 낼 수 없어요"); return; }
+      toast(soundOn ? "이 소리가 타이머 끝에 울려요 🔔" : "테스트로는 들려요 · 타이머 알림음은 꺼져 있어요");
+    });
+    $("btnSoundToggle").addEventListener("click", function(){
+      soundOn = !soundOn; saveSound(); paintSound();
+      if (soundOn){ unlockAudio(); chime(); toast("타이머 종료 알림음을 켰어요"); }
+      else toast("타이머 종료 알림음을 껐어요 (진동만 울려요)");
     });
     Array.prototype.forEach.call(document.querySelectorAll(".preset"), function(b){
       b.addEventListener("click", function(){
+        unlockAudio();
         var min = +b.dataset.min;
         if (min * 60 === timer.total && !timer.running && timer.left === timer.total) return;
         var wasRunning = timer.running;
@@ -1247,6 +1344,8 @@
     });
     document.addEventListener("visibilitychange", function(){
       if (!document.hidden && timer.running){
+        unlockAudio();
+        requestWakeLock();
         var left = Math.round((timer.endAt - Date.now())/1000);
         if (left <= 0){ finishTimer(); }
       }
@@ -1467,21 +1566,27 @@
   /* ================= init ================= */
   function init(){
     loadTimer();
-    ensureAudio(); // iOS 대비: 첫 터치 때 resume
     initFromHash();
     bindHashChange();
     bindTabs();
     bindTimer();
     bindFeedback();
     bindUI();
+    paintSound();
     renderAll();
+    var seenNotice = false;
+    try{ seenNotice = localStorage.getItem(SOUND_NOTICE_KEY) === "1"; }catch(e){}
     if (upgradedFromV1 && !readHash()){
       showBanner("🆕 <b>학원 시간표·교재</b>에 맞춰 체크리스트를 새로 짰어요. 항목은 <b>✎</b> 로 고칠 수 있고, 목록이 바뀌었으면 체크리스트 아래 <b>기본 목록으로</b>를 누르면 이 새 목록으로 돌아와요.",
         [{ label:"알겠어요", onClick:function(){} }]);
+    } else if (!seenNotice && !readHash()){
+      showBanner("🔔 <b>타이머 종료 알림음</b>이 또렷한 종소리로 바뀌었어요. 공부 시작 전에 <b>소리 테스트</b>를 눌러 폰 볼륨·무음 모드를 한 번만 확인해 두면 20분 뒤에도 확실히 들려요.",
+        [{ label:"확인했어요", onClick:function(){ try{ localStorage.setItem(SOUND_NOTICE_KEY, "1"); }catch(e){} } }]);
     }
     if (timer.running) startTick();
-    document.addEventListener("touchstart", function once(){ ensureAudio(); document.removeEventListener("touchstart", once); }, { passive:true });
-    document.addEventListener("click", function once2(){ ensureAudio(); document.removeEventListener("click", once2); });
+    // 모바일 브라우저는 사용자 제스처 안에서만 오디오를 열어 주므로, 첫 터치·클릭에서 미리 풀어 둔다.
+    document.addEventListener("touchstart", function once(){ unlockAudio(); document.removeEventListener("touchstart", once); }, { passive:true });
+    document.addEventListener("click", function once2(){ unlockAudio(); document.removeEventListener("click", once2); });
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
