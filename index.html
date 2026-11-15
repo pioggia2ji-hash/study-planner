@@ -756,13 +756,6 @@
     DAY_ORDER.forEach(function(d){ if (idxOf(planOf(d), id) >= 0) out.push(d); });
     return out;
   }
-  function itemAnywhere(id){
-    for (var i=0;i<DAY_ORDER.length;i++){
-      var arr = planOf(DAY_ORDER[i]), j = idxOf(arr, id);
-      if (j >= 0) return arr[j];
-    }
-    return null;
-  }
   function rec(k, create){
     var d = store.days[k];
     if (!d && create !== false){
@@ -1068,7 +1061,7 @@
     var bd = document.createElement("button");
     bd.className = "tool"; bd.type = "button"; bd.textContent = "✕";
     bd.setAttribute("aria-label", "삭제: " + it.title);
-    bd.addEventListener("click", function(){ deleteItem(it.id); });
+    bd.addEventListener("click", function(){ deleteItem(dow, it.id); });
     tools.appendChild(be); tools.appendChild(bd);
 
     li.appendChild(chk); li.appendChild(body); li.appendChild(tools);
@@ -1225,14 +1218,12 @@
   function softFeedback(){
     if (navigator.vibrate) { try{ navigator.vibrate(18); }catch(e){} }
   }
-  function deleteItem(id){
-    var it = itemAnywhere(id);
-    if (!it) return;
-    if (!confirm("'" + it.title + "' 항목을 요일 계획에서 지울까요?")) return;
-    DAY_ORDER.forEach(function(dow){
-      var arr = planOf(dow), i = idxOf(arr, id);
-      if (i >= 0) arr.splice(i, 1);
-    });
+  function deleteItem(dow, id){
+    var arr = planOf(dow), i = idxOf(arr, id);
+    if (i < 0) return;
+    var it = arr[i];
+    if (!confirm("'" + it.title + "' 항목을 " + DOW[dow] + "요일 목록에서 지울까요?\n(다른 요일 목록은 그대로 둡니다)")) return;
+    arr.splice(i, 1);
     saveStore();
     renderAll();
     toast("지웠어요. '기본 목록으로' 누르면 되돌아와요");
