@@ -685,13 +685,13 @@
     $("schSub").textContent = ACADEMY[dow] ? "오늘은 학원 가는 날" : "오늘은 학원 없는 날";
   }
   function todayHint(it, dow){
-    var hasAc = !!ACADEMY[dow];
+    var mathAc = (dow === 2 || dow === 4 || dow === 6);   // 수학학원 가는 날(화·목·토)
     if (it.id === "math"){
-      return hasAc ? "오늘은 학원 날 → 학원 숙제·오답 정리 20분만!"
-                   : "오늘은 학원 없는 날 → 공통수학1 + 마플 40분 복습";
+      return mathAc ? "오늘은 수학학원 가는 날 → 학원 숙제·오답 정리 20분만!"
+                    : "오늘은 수학학원 없는 날 → 공통수학1 + 마플 40분 복습";
     }
-    if (it.id === "korean" && !hasAc) return "오늘은 국어학원 없는 날 → 고전운문 어휘·해석 20분";
-    if (it.id === "science" && !hasAc) return "EBS 통합과학1 — 오늘은 1강만, 용어 정리까지";
+    if (it.id === "korean" && dow >= 1 && dow <= 5) return "국어학원 없는 날 → 고전운문 어휘·해석 20분";
+    if (it.id === "science" && (dow === 1 || dow === 3)) return "EBS 통합과학1 — 1강만, 용어 정리까지";
     return "";
   }
 
