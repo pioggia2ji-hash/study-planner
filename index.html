@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="ko" data-app-ver="2026-11-15-v2">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -145,6 +145,20 @@
   .it-title{font-size:14.5px;font-weight:700;letter-spacing:-.01em;word-break:break-word;}
   .it-note{font-size:12.5px;color:var(--ink-soft);margin-top:3px;line-height:1.5;word-break:break-word;}
   .it-meta{display:inline-block;font-size:11px;font-weight:800;color:#A87C5E;background:#FBF0E6;border-radius:7px;padding:1px 7px;margin-right:5px;}
+  .it-days{display:inline-block;font-size:11px;font-weight:800;color:#6B5590;background:var(--lav-soft);border-radius:7px;padding:1px 7px;margin-right:5px;}
+  .it-rec{display:inline-block;font-size:11px;font-weight:800;color:#3F7A5C;background:var(--mint-soft);border:1px solid #CFE7D8;border-radius:7px;padding:0 7px;margin-right:5px;}
+  .it-today{font-size:12px;font-weight:800;color:#B4695A;margin-top:4px;line-height:1.45;}
+
+  /* ---------- academy schedule ---------- */
+  .sch{display:flex;flex-direction:column;gap:6px;}
+  .sch-row{display:flex;align-items:center;gap:9px;font-size:13px;padding:8px 10px;border-radius:12px;background:#FBF6F0;border:1px solid transparent;}
+  .sch-row.today{background:var(--coral-soft);border-color:#F3D2C2;}
+  .sch-d{flex:none;width:54px;font-weight:800;color:#A87C5E;font-size:12.5px;letter-spacing:-.01em;}
+  .sch-row.today .sch-d{color:#B4695A;}
+  .sch-b{flex:1;min-width:0;color:#5A4A3E;line-height:1.5;}
+  .sch-b b{font-weight:800;}
+  .sch-t{color:#8A7566;font-weight:700;font-variant-numeric:tabular-nums;}
+  .sch-now{flex:none;font-size:10.5px;font-weight:800;color:#B4695A;background:#fff;border-radius:999px;padding:2px 8px;}
   .it-tools{display:flex;flex-direction:column;gap:4px;flex:none;}
   .tool{
     width:30px;height:28px;border:0;background:transparent;color:#BBA897;font-size:13px;
@@ -292,6 +306,16 @@
   <!-- ======= TODAY ======= -->
   <section id="tab-today">
 
+    <!-- academy schedule -->
+    <div class="card">
+      <div class="card-h">
+        <div class="card-t"><span class="ico">🏫</span>이번 주 학원 일정</div>
+        <span class="card-sub" id="schSub">—</span>
+      </div>
+      <div class="sch" id="schRows"></div>
+      <p class="hint" style="margin:9px 0 0;">학원 가는 날(화·목·토)은 <b>학원 숙제·오답 정리</b>만, 학원 없는 날(월·수·금)은 <b>공통수학1 복습 40분</b>으로 채워요. 항목 앞 시간·요일 표시가 그날 추천이에요.</p>
+    </div>
+
     <!-- timer -->
     <div class="card">
       <div class="card-h">
@@ -435,32 +459,52 @@
   "use strict";
 
   /* ================= constants ================= */
-  var STORE_KEY = "g1-planner:v1";
+  var STORE_KEY = "g1-planner:v2";
+  var OLD_STORE_KEY = "g1-planner:v1";
   var TIMER_KEY = "g1-planner:timer";
   var ENTRY_DATE = new Date(2027, 2, 2); // 고1 입학 시점(3월 초)
   var RING_LEN = 2 * Math.PI * 92;
+  var upgradedFromV1 = false;
 
+  // 요일 코드: 0=일 1=월 2=화 3=수 4=목 5=금 6=토
   var DEFAULT_ITEMS = [
-    { id:"timer",  emoji:"⏱️", title:"공통 · 20분 타이머 맞추고 한 세트 끝내기", note:"속도 감각의 시작. 20분 안에 끝내는 경험을 매일 쌓기", mins:20, done:false },
-    { id:"math",   emoji:"📐", title:"수학 (40분)", note:"중3 도형·함수 복습 + 공통수학1 · 식 줄 맞춰 쓰기", mins:40, done:false },
-    { id:"korean", emoji:"📖", title:"국어 (20분)", note:"고1 비문학 지문 1개 · 정답 근거 밑줄 긋기", mins:20, done:false },
-    { id:"english",emoji:"🔤", title:"영어 (주 3회 20분)", note:"고1 모의고사 어휘 + 3~4줄 영작 요약", mins:20, done:false },
-    { id:"reading",emoji:"📚", title:"독서 (주말·여유시간)", note:"진로 관련 책 읽고 한 줄 기록", mins:30, done:false }
+    { id:"timer",   emoji:"⏱️", title:"20분 타이머 켜고 시작하기", note:"매일 · 속도 감각 훈련 (한 세트라도 끝까지)",
+      mins:20, days:[0,1,2,3,4,5,6], daysLabel:"매일", done:false },
+    { id:"math",    emoji:"📐", title:"수학 · 공통수학1 + 마플 순열·조합", note:"월·수·금·일 40분 복습/숙제 — 화·목·토 학원 날은 오답 20분만!",
+      mins:40, days:[0,1,3,5], daysLabel:"월·수·금·일", done:false },
+    { id:"korean",  emoji:"📖", title:"국어 · 고전운문 + 비문학 1지문", note:"월~금 20분 — 어휘·해석 정확도",
+      mins:20, days:[1,2,3,4,5], daysLabel:"월~금", done:false },
+    { id:"english", emoji:"🔤", title:"영어 · 문법 약점 보완 + 고1 모의고사", note:"월·수·금 30분 — 문법 개념 1파트 + 고1 모고 독해 3~4지문 시간 재기",
+      mins:30, days:[1,3,5], daysLabel:"월·수·금", done:false },
+    { id:"science", emoji:"🔬", title:"과학 · EBS 통합과학1 인강", note:"월·수 각 35분 — 1강 듣고 용어 정리",
+      mins:35, days:[1,3], daysLabel:"월·수", done:false },
+    { id:"history", emoji:"🏛️", title:"한국사 · 주 1회 흐름 잡기", note:"일요일 30분 — EBS·기본서 1단원",
+      mins:30, days:[0], daysLabel:"일", done:false }
   ];
+
+  // 학원 고정 일정 (요일 → 과목/시간)
+  var ACADEMY = {
+    2: [{ s:"수학학원", a:"17:00", b:"20:00" }],
+    4: [{ s:"수학학원", a:"17:00", b:"20:00" }],
+    6: [{ s:"수학", a:"12:00", b:"15:00" }, { s:"국어", a:"15:00", b:"17:00" }],
+    0: [{ s:"국어", a:"12:00", b:"14:00" }]
+  };
 
   var ROADMAP = [
     { key:"s1", tag:"1단계", cls:"s1", title:"습관 · 속도 잡기", period:"2026년 11월 ~ 12월",
       items:[
         "매일 20분 타이머로 한 세트 끝내기 (속도 감각 만들기)",
-        "공통수학1 1회독 — 식 줄 맞춰 또박또박 쓰기",
-        "고1 비문학 1지문/일 — 정답 근거 밑줄까지",
-        "영어 어휘 + 3~4줄 영작 (주 3회)"
+        "수학 — 공통수학1 복습 + 마플 순열·조합 (학원 숙제·오답 정리)",
+        "국어 — 고전운문 어휘·해석 + 비문학 1지문/일 (근거 밑줄까지)",
+        "영어 — 문법 개념 1파트 + 고1 모의고사 독해 3~4지문 시간 재기",
+        "과학 — EBS 통합과학1 1회독 (강의 1개 듣고 용어 정리)"
       ]},
     { key:"s2", tag:"2단계", cls:"s2", title:"실전 속도", period:"2027년 1월 ~ 2월 (겨울방학)",
       items:[
         "공통수학1 2회독 (틀린 문제만 다시)",
         "40분 실전 세트 풀기 — 시간 재고 끊기지 않게",
-        "수행평가 대비 독서·진로탐구 도서 2권 읽고 기록 남기기"
+        "수행평가 대비 독서·진로탐구 도서 2권 읽고 기록 남기기",
+        "윈터스쿨(1개월) 기간엔 학원 숙제 소화 + 통합과학 인강 30분으로 유지"
       ]},
     { key:"s3", tag:"3단계", cls:"s3", title:"입학 직후 자리잡기", period:"2027년 3월 ~",
       items:[
@@ -513,17 +557,55 @@
   var editId = null;      // 편집 중인 항목 id
 
   function loadStore(){
-    var s = { days:{}, roadmap:{} };
-    try{
-      var raw = localStorage.getItem(STORE_KEY);
-      if (raw){
+    var s = { ver: 2, days:{}, roadmap:{} };
+    var raw = null;
+    try{ raw = localStorage.getItem(STORE_KEY); }catch(e){}
+    if (raw){
+      try{
         var p = JSON.parse(raw);
         if (p && typeof p === "object"){
           s.days = (p.days && typeof p.days === "object") ? p.days : {};
           s.roadmap = (p.roadmap && typeof p.roadmap === "object") ? p.roadmap : {};
+          s.ver = +p.ver || 1;
         }
-      }
-    }catch(e){ /* 손상된 저장값은 새로 시작 */ }
+      }catch(e){ /* 손상된 저장값은 새로 시작 */ }
+      if (s.ver >= 2) return s;
+    }
+
+    // 예전 저장값(v1) → 학원 시간표·교재에 맞춘 기본 목록(v2)으로 한 번만 옮긴다.
+    // 체크 여부·한마디·피드백·로드맵은 그대로 살리고, 기본 항목은 새 목록으로 바꾼다.
+    var old = null;
+    if (!raw){ try{ old = localStorage.getItem(OLD_STORE_KEY); }catch(e){} }
+    if (old){
+      try{
+        var o = JSON.parse(old);
+        if (o && o.days && typeof o.days === "object"){
+          var NEW_IDS = {}, OLD_IDS = { timer:1, math:1, korean:1, english:1, reading:1 };
+          DEFAULT_ITEMS.forEach(function(it){ NEW_IDS[it.id] = true; });
+          Object.keys(o.days).forEach(function(k){
+            var d = o.days[k];
+            if (!d || !Array.isArray(d.items)) return;
+            var doneMap = {}, extras = [];
+            d.items.forEach(function(it){
+              if (!it || !it.id) return;
+              if (NEW_IDS[it.id]) doneMap[it.id] = !!it.done;
+              else if (!OLD_IDS[it.id]) extras.push(it); // 옛 기본 항목은 새 목록으로 대체
+            });
+            var items = defaultItems().map(function(it){ it.done = !!doneMap[it.id]; return it; });
+            extras.forEach(function(it){
+              items.push({ id:String(it.id), emoji:it.emoji||"📝", title:it.title||"할 일", note:it.note||"",
+                           mins:clamp(+it.mins||0, 0, 300), done:!!it.done });
+            });
+            s.days[k] = { items:items, kid:d.kid||"", kidTs:+d.kidTs||0, mom:d.mom||"", momTs:+d.momTs||0,
+                          sets:+d.sets||0, updated:+d.updated||0 };
+          });
+          if (o.roadmap && typeof o.roadmap === "object") s.roadmap = o.roadmap;
+          upgradedFromV1 = true;
+          try{ localStorage.setItem(STORE_KEY, JSON.stringify(s)); }catch(e){}
+        }
+      }catch(e){ /* 옛 저장값을 못 읽으면 새로 시작 */ }
+    }
+    s.ver = 2;
     return s;
   }
   function saveStore(){
@@ -532,7 +614,8 @@
   }
   function defaultItems(){
     return DEFAULT_ITEMS.map(function(it){
-      return { id:it.id, emoji:it.emoji, title:it.title, note:it.note, mins:it.mins, done:false };
+      return { id:it.id, emoji:it.emoji, title:it.title, note:it.note, mins:it.mins,
+               days:it.days.slice(), daysLabel:it.daysLabel, done:false };
     });
   }
   function newDay(){
@@ -558,6 +641,60 @@
   }
   function touch(){ var d = getDay(viewDate, true); d.updated = Date.now(); saveStore(); }
 
+  /* ================= academy ================= */
+  function shortTime(t){ return t.replace(":00", "시"); }
+  function academyPill(dow){
+    var list = ACADEMY[dow];
+    if (!list || !list.length) return DOW[dow] + " · 학원 없는 날";
+    var parts = list.map(function(a){ return a.s + " " + shortTime(a.a) + "~" + shortTime(a.b); });
+    return DOW[dow] + " · " + parts.join(" · ");
+  }
+  function renderSchedule(){
+    var dow = parseKey(viewDate).getDay();
+    var box = $("schRows");
+    box.innerHTML = "";
+
+    function row(label, dowList, cells, isToday){
+      var el = document.createElement("div");
+      el.className = "sch-row" + (isToday ? " today" : "");
+      var d = document.createElement("div");
+      d.className = "sch-d"; d.textContent = label;
+      var b = document.createElement("div");
+      b.className = "sch-b";
+      cells.forEach(function(c, i){
+        if (i) b.appendChild(document.createElement("br"));
+        var n = document.createElement("b"); n.textContent = c[0];
+        b.appendChild(n);
+        var t = document.createElement("span"); t.className = "sch-t";
+        t.textContent = " " + c[1];
+        b.appendChild(t);
+      });
+      el.appendChild(d); el.appendChild(b);
+      if (isToday){
+        var now = document.createElement("span"); now.className = "sch-now"; now.textContent = "오늘";
+        el.appendChild(now);
+      }
+      box.appendChild(el);
+    }
+
+    row("화·목", [2,4], ACADEMY[2].map(function(a){ return [a.s, a.a + "~" + a.b]; }), dow===2||dow===4);
+    row("토", [6], ACADEMY[6].map(function(a){ return [a.s, a.a + "~" + a.b]; }), dow===6);
+    row("일", [0], ACADEMY[0].map(function(a){ return [a.s, a.a + "~" + a.b]; }), dow===0);
+    row("월·수·금", [1,3,5], [["학원 없음", ""], ["", "수학 40분 · 영어 30분 · 과학 35분"]], dow===1||dow===3||dow===5);
+
+    $("schSub").textContent = ACADEMY[dow] ? "오늘은 학원 가는 날" : "오늘은 학원 없는 날";
+  }
+  function todayHint(it, dow){
+    var hasAc = !!ACADEMY[dow];
+    if (it.id === "math"){
+      return hasAc ? "오늘은 학원 날 → 학원 숙제·오답 정리 20분만!"
+                   : "오늘은 학원 없는 날 → 공통수학1 + 마플 40분 복습";
+    }
+    if (it.id === "korean" && !hasAc) return "오늘은 국어학원 없는 날 → 고전운문 어휘·해석 20분";
+    if (it.id === "science" && !hasAc) return "EBS 통합과학1 — 오늘은 1강만, 용어 정리까지";
+    return "";
+  }
+
   /* ================= header ================= */
   function renderHeader(){
     var k = viewDate;
@@ -572,8 +709,8 @@
     else dd = "고1 입학 D+" + (-diff);
     $("dday").textContent = dd;
 
-    var wd = now.getDay();
-    $("weekdayPill").textContent = wd===0||wd===6 ? "주말은 여유롭게" : "평일 루틴";
+    var wd = parseKey(k).getDay();
+    $("weekdayPill").textContent = academyPill(wd);
 
     var day = getDay(viewDate, false);
     var done = day ? day.items.filter(function(i){ return i.done; }).length : 0;
@@ -608,6 +745,9 @@
     var list = $("list");
     list.innerHTML = "";
 
+    var dow = parseKey(viewDate).getDay();
+    var isToday = viewDate === todayKey();
+
     day.items.forEach(function(it){
       var li = document.createElement("li");
       li.className = "item" + (it.done ? " done" : "");
@@ -630,11 +770,23 @@
       body.className = "it-body";
       var t = document.createElement("div");
       t.className = "it-title";
+      var rec = Array.isArray(it.days) && it.days.indexOf(dow) >= 0;
+      if (rec && isToday && !it.done){
+        var rc = document.createElement("span");
+        rc.className = "it-rec"; rc.textContent = "오늘 추천";
+        t.appendChild(rc);
+      }
       if (it.mins) {
         var m = document.createElement("span");
         m.className = "it-meta";
         m.textContent = it.mins + "분";
         t.appendChild(m);
+      }
+      if (it.daysLabel){
+        var dl = document.createElement("span");
+        dl.className = "it-days";
+        dl.textContent = it.daysLabel;
+        t.appendChild(dl);
       }
       t.appendChild(document.createTextNode(it.emoji + " " + it.title));
       body.appendChild(t);
@@ -643,6 +795,13 @@
         n.className = "it-note";
         n.textContent = it.note;
         body.appendChild(n);
+      }
+      var hint = (isToday && !it.done) ? todayHint(it, dow) : "";
+      if (hint){
+        var hd = document.createElement("div");
+        hd.className = "it-today";
+        hd.textContent = hint;
+        body.appendChild(hd);
       }
 
       var tools = document.createElement("div");
@@ -695,7 +854,7 @@
     var em = document.createElement("div");
     em.className = "emojis";
     var chosen = it.emoji;
-    ["⏱️","📐","📖","🔤","📚","✏️","🧪","🌏"].forEach(function(e){
+    ["⏱️","📐","📖","🔤","📚","✏️","🧪","🔬","🏛️","🌏"].forEach(function(e){
       var b = document.createElement("button");
       b.type = "button"; b.className = "emoji-pick" + (e===chosen ? " on" : ""); b.textContent = e;
       b.addEventListener("click", function(){
@@ -770,7 +929,7 @@
     renderAll();
   }
   function resetList(){
-    if (!confirm("오늘 목록을 기본 5개 항목으로 되돌릴까요? (체크 상태도 초기화돼요)")) return;
+    if (!confirm("오늘 목록을 새 기본 6개 항목으로 되돌릴까요? (체크한 상태는 그대로 둘게요)")) return;
     var day = getDay(viewDate, true);
     var prev = {};
     day.items.forEach(function(i){ prev[i.id] = i.done; });
@@ -816,10 +975,11 @@
   function buildPayload(k){
     var d = getDay(k, true);
     return {
-      v: 2,
+      v: 3,
       d: k,
       i: d.items.map(function(it){
-        return [it.id, it.emoji, it.title, it.note||"", it.mins||0, it.done?1:0];
+        return [it.id, it.emoji, it.title, it.note||"", it.mins||0, it.done?1:0,
+                Array.isArray(it.days) ? it.days.join(",") : "", it.daysLabel||""];
       }),
       s: d.kid||"",
       st: d.kidTs||0,
@@ -833,8 +993,10 @@
     var day = getDay(p.d, false);
     var incoming = {
       items: p.i.map(function(a){
+        var days = (typeof a[6] === "string" && a[6] !== "") ? a[6].split(",").map(function(x){ return +x; }) : null;
         return { id: String(a[0]||uid()), emoji: a[1]||"📝", title: a[2]||"할 일",
-                 note: a[3]||"", mins: +a[4]||0, done: !!+a[5] };
+                 note: a[3]||"", mins: +a[4]||0, done: !!+a[5],
+                 days: days, daysLabel: a[7]||"" };
       }),
       kid: typeof p.s === "string" ? p.s : "",
       kidTs: +p.st || 0,
@@ -1231,6 +1393,7 @@
   /* ================= render all ================= */
   function renderAll(){
     renderHeader();
+    renderSchedule();
     renderList();
     renderFeedback();
     renderRoadmap();
@@ -1292,6 +1455,10 @@
     bindFeedback();
     bindUI();
     renderAll();
+    if (upgradedFromV1 && !readHash()){
+      showBanner("🆕 <b>학원 시간표·교재</b>에 맞춰 체크리스트를 새로 짰어요. 오늘부터 이 목록으로 쓰시고, 항목 이름·시간은 <b>✎</b> 로 언제든 고칠 수 있어요.",
+        [{ label:"알겠어요", onClick:function(){} }]);
+    }
     if (timer.running) startTick();
     document.addEventListener("touchstart", function once(){ ensureAudio(); document.removeEventListener("touchstart", once); }, { passive:true });
     document.addEventListener("click", function once2(){ ensureAudio(); document.removeEventListener("click", once2); });
