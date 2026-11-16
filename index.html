@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ko" data-app-ver="2026-11-16-v7">
+<html lang="ko" data-app-ver="2026-11-16-v8">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -185,8 +185,6 @@
   .btn-primary{background:linear-gradient(160deg,#EE9B84,#E2876F);color:#fff;box-shadow:0 6px 16px rgba(226,135,111,.28);}
   .btn-ghost{background:#F6EBE0;color:#8A7566;}
   .btn-mint{background:var(--mint-soft);color:#3F7A5C;border:1px solid #CFE7D8;}
-  .btn-lav{background:var(--lav-soft);color:#6B5590;border:1px solid #DFD4F2;}
-  .btn-sun{background:var(--sun-soft);color:#8A6A20;border:1px solid #F2E0B4;}
   .btn-sm{padding:10px 12px;font-size:13.5px;border-radius:12px;flex:none;}
 
   /* ---------- 중3 전환기·고입 일정 ---------- */
@@ -345,8 +343,6 @@
   .save-dot{font-size:11px;font-weight:700;color:#9DBFA9;margin-left:auto;opacity:0;transition:opacity .3s;}
   .save-dot.on{opacity:1;}
 
-  /* ---------- share ---------- */
-  .share-btns{display:flex;flex-direction:column;gap:8px;}
   .hint{font-size:11.5px;color:var(--ink-soft);margin-top:9px;line-height:1.55;}
 
   /* ---------- roadmap ---------- */
@@ -571,19 +567,6 @@
       </div>
     </div>
 
-    <!-- share -->
-    <div class="card">
-      <div class="card-h">
-        <div class="card-t"><span class="ico">📮</span>공유하기</div>
-        <span class="card-sub">두 폰에서 주고받기</span>
-      </div>
-      <div class="share-btns">
-        <button class="btn btn-sun" id="btnCopyKakao">카톡 공유용 요약 복사</button>
-        <button class="btn btn-lav" id="btnCopyLink">현재 상태 링크로 공유</button>
-      </div>
-      <p class="hint">이제 두 폰이 <b>구글 시트와 자동으로 맞춰져요</b>. 체크·한마디·피드백을 고치면 상대 폰에 몇 초 안에 그대로 나타나요. 아래 링크는 한 번만 복사해 다른 폰에서 열어 두면 돼요.</p>
-    </div>
-
   </section>
 
   <!-- ======= ROADMAP ======= -->
@@ -618,7 +601,7 @@
 
   <footer>
     아이와 보호자가 함께 쓰는 플래너<br>
-    기록은 구글 시트와 실시간으로 맞춰져요 · 링크로도 공유할 수 있어요
+    기록은 구글 시트와 실시간으로 맞춰져요
   </footer>
 </div>
 
@@ -1700,28 +1683,7 @@
     el._t = setTimeout(function(){ el.classList.remove("on"); }, 1400);
   }
 
-  /* ================= share ================= */
-  function buildPayload(k){
-    var dow = dowOf(k);
-    var r = store.days[k] || { done:{}, actual:{}, kid:"", kidTs:0, mom:"", momTs:0, sets:0, updated:0 };
-    var doneIds = [];
-    planOf(dow).forEach(function(it){ if (r.done && r.done[it.id]) doneIds.push(it.id); });
-    var act = {};
-    if (r.actual) Object.keys(r.actual).forEach(function(id){ if (+r.actual[id] > 0) act[id] = Math.round(+r.actual[id]); });
-    return {
-      v: 5,
-      d: k,
-      w: dow,
-      p: planOf(dow).map(function(it){ return [it.id, it.emoji || "📝", it.title, it.note || "", targetOf(it)]; }),
-      c: doneIds,
-      am: act,
-      s: r.kid || "",
-      st: r.kidTs || 0,
-      m: r.mom || "",
-      mt: r.momTs || 0,
-      t: r.updated || Date.now()
-    };
-  }
+  /* ============ 예전에 복사해 둔 공유 링크 불러오기 ============ */
   function applyPayload(p){
     if (!p || !p.d || !Array.isArray(p.p)) return false;
     var k = p.d;
@@ -1760,54 +1722,6 @@
     store.days[k] = incoming;
     saveStore();
     return true;
-  }
-  function kakaoText(){
-    var k = viewDate;
-    var dow = dowOf(k);
-    var items = planOf(dow);
-    var doneN = countDone(k, dow);
-    var r = store.days[k] || { done:{}, kid:"", mom:"" };
-    var lines = [];
-    lines.push("[고1 1등급 학습 플래너] " + prettyDate(k));
-    lines.push("");
-    items.forEach(function(it){
-      var tgt = targetOf(it);
-      var act = (r.actual && +r.actual[it.id] > 0) ? Math.round(+r.actual[it.id]) : 0;
-      var minTag = "";
-      if (act > 0) minTag = " (목표 " + tgt + "분 → 실제 " + act + "분)";
-      else if (tgt && it.title.indexOf(tgt + "분") < 0) minTag = " (목표 " + tgt + "분)";
-      var on = r.done && r.done[it.id];
-      lines.push((on ? "✅ " : "⬜ ") + (it.emoji ? it.emoji + " " : "") + it.title + minTag);
-    });
-    lines.push("");
-    lines.push("📊 달성 " + doneN + "/" + items.length +
-      (items.length ? " (" + Math.round(doneN/items.length*100) + "%)" : ""));
-    if (r.kid && r.kid.trim()) { lines.push(""); lines.push("🌱 한마디: " + r.kid.trim()); }
-    if (r.mom && r.mom.trim()) { lines.push("💐 엄마 피드백: " + r.mom.trim()); }
-    lines.push("");
-    lines.push("✔ 이번 주 달성률 " + $("weekRate").textContent + " · " + $("dday").textContent);
-    lines.push("");
-    lines.push("📎 " + location.origin + location.pathname);
-    return lines.join("\n");
-  }
-  function copyText(text){
-    if (navigator.clipboard && navigator.clipboard.writeText){
-      return navigator.clipboard.writeText(text).then(function(){ return true; }).catch(function(){ return fallbackCopy(text); });
-    }
-    return Promise.resolve(fallbackCopy(text));
-  }
-  function fallbackCopy(text){
-    try{
-      var ta = document.createElement("textarea");
-      ta.value = text;
-      ta.setAttribute("readonly","");
-      ta.style.position = "fixed"; ta.style.top = "0"; ta.style.left = "0"; ta.style.opacity = "0";
-      document.body.appendChild(ta);
-      ta.select(); ta.setSelectionRange(0, ta.value.length);
-      var ok = document.execCommand("copy");
-      document.body.removeChild(ta);
-      return ok;
-    }catch(e){ return false; }
   }
 
   /* ================= timer ================= */
@@ -2744,22 +2658,6 @@
       toast(names + "요일에 추가했어요" + (mins ? " (목표 " + mins + "분)" : ""));
     });
     $("btnResetList").addEventListener("click", resetList);
-
-    $("btnCopyKakao").addEventListener("click", function(){
-      copyText(kakaoText()).then(function(ok){
-        toast(ok ? "카톡에 붙여넣기 하세요 ✓" : "복사가 안 돼요. 화면을 길게 눌러 복사해 주세요");
-      });
-    });
-    $("btnCopyLink").addEventListener("click", function(){
-      var url = location.origin + location.pathname + "#data=" + b64encode(JSON.stringify(buildPayload(viewDate)));
-      copyText(url).then(function(ok){
-        if (!ok){ toast("링크 복사가 안 돼요. 길게 눌러 복사해 주세요"); return; }
-        toast(url.length > 2000 ? "복사했어요 (메모가 길어 링크가 길어요)" : "공유 링크를 복사했어요 ✓");
-        if (navigator.share){
-          navigator.share({ title:"고1 1등급 학습 플래너", text: prettyDate(viewDate) + " 기록", url: url }).catch(function(){});
-        }
-      });
-    });
   }
 
   /* ================= init ================= */
