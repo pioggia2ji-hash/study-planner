@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ko" data-app-ver="2026-11-15-v5">
+<html lang="ko" data-app-ver="2026-11-16-v6">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -178,6 +178,52 @@
   .btn-lav{background:var(--lav-soft);color:#6B5590;border:1px solid #DFD4F2;}
   .btn-sun{background:var(--sun-soft);color:#8A6A20;border:1px solid #F2E0B4;}
   .btn-sm{padding:10px 12px;font-size:13.5px;border-radius:12px;flex:none;}
+
+  /* ---------- 중3 전환기·고입 일정 ---------- */
+  .ev-card{padding:0;overflow:hidden;}
+  .ev-head{
+    display:flex;align-items:center;gap:8px;width:100%;background:none;border:0;
+    font-family:inherit;padding:13px 15px;cursor:pointer;text-align:left;color:var(--ink);
+  }
+  .ev-head:active{background:#FBF6F0;}
+  .ev-head .ico{font-size:17px;flex:none;line-height:1;}
+  .ev-now{flex:1;min-width:0;font-size:13.5px;font-weight:800;letter-spacing:-.01em;line-height:1.45;}
+  .ev-now .ev-when{color:#B4695A;}
+  .ev-now .ev-t{color:#5A4A3E;}
+  .ev-now .dday{
+    display:inline-block;font-size:10.5px;font-weight:800;color:#fff;background:var(--coral);
+    border-radius:999px;padding:1px 7px;margin-left:5px;vertical-align:1px;
+  }
+  .ev-now .dday.rest{background:#C9A24A;}
+  .ev-toggle{flex:none;font-size:11.5px;font-weight:800;color:var(--ink-soft);white-space:nowrap;}
+  .ev-body{padding:2px 15px 14px;border-top:1px dashed var(--line);}
+  .ev-month{font-size:11px;font-weight:800;color:#A87C5E;letter-spacing:.02em;margin:12px 2px 6px;}
+  .ev-month:first-child{margin-top:11px;}
+  .ev-row{
+    display:flex;align-items:flex-start;gap:9px;padding:8px 10px;border-radius:12px;
+    background:#FBF6F0;border:1px solid transparent;margin-bottom:5px;
+  }
+  .ev-row:last-child{margin-bottom:0;}
+  .ev-row.today{background:var(--coral-soft);border-color:#F3D2C2;}
+  .ev-row.exam{background:var(--lav-soft);border-color:#DFD4F2;}
+  .ev-row.off{background:var(--sun-soft);border-color:#F2E0B4;}
+  .ev-row.apply{background:#FBE3D8;border-color:#F3C9B8;}
+  .ev-row.grad{background:var(--lav-soft);border-color:#DFD4F2;}
+  .ev-row.past{opacity:.45;}
+  .ev-d{flex:none;width:70px;font-size:12px;font-weight:800;color:#A87C5E;font-variant-numeric:tabular-nums;line-height:1.35;}
+  .ev-row.today .ev-d,.ev-row.apply .ev-d{color:#B4695A;}
+  .ev-d i{font-style:normal;font-weight:700;color:#8A7566;font-size:11px;}
+  .ev-b{flex:1;min-width:0;}
+  .ev-b b{display:block;font-size:13.5px;font-weight:800;letter-spacing:-.01em;line-height:1.4;}
+  .ev-b span{display:block;font-size:11.5px;color:var(--ink-soft);line-height:1.45;margin-top:2px;}
+  .ev-tag{
+    flex:none;font-size:10px;font-weight:800;border-radius:999px;padding:2px 7px;
+    background:#fff;color:#B4695A;border:1px solid #F3D2C2;white-space:nowrap;margin-top:1px;
+  }
+  .ev-row.past .ev-tag{color:#9C8B7C;border-color:var(--line2);}
+  .ev-row.exam .ev-tag{color:#6B5590;border-color:#DFD4F2;}
+  .ev-row.off .ev-tag{color:#96712A;border-color:#EFD9A6;}
+  .ev-foot{font-size:11px;color:var(--ink-soft);margin:10px 2px 0;line-height:1.5;}
 
   /* ---------- checklist ---------- */
   .progress{height:8px;background:#F3E4D6;border-radius:99px;overflow:hidden;margin:2px 0 14px;}
@@ -366,6 +412,16 @@
     <!-- weekday chips : 기본은 오늘 요일 -->
     <div class="daybar" id="daybar" role="tablist" aria-label="요일 선택"></div>
 
+    <!-- 중3 전환기·고입 주요 일정 -->
+    <div class="card ev-card">
+      <button class="ev-head" id="evHead" type="button" aria-expanded="false" aria-controls="evBody">
+        <span class="ico">📅</span>
+        <span class="ev-now" id="evNow">—</span>
+        <span class="ev-toggle" id="evToggle">전체 보기 ▾</span>
+      </button>
+      <div class="ev-body" id="evBody" hidden></div>
+    </div>
+
     <!-- academy schedule -->
     <div class="card">
       <div class="card-h">
@@ -552,6 +608,25 @@
     6: [{ s:"수학", a:"12:00", b:"15:00" }, { s:"국어", a:"15:00", b:"17:00" }],
     0: [{ s:"국어", a:"12:00", b:"14:00" }]
   };
+
+  /* ---- 중3 전환기·고입 주요 일정 (2026-11-16 가정통신문 기준) ----
+     화면은 공개 페이지라 학교명·이름은 넣지 않고 일정만 적는다. */
+  var SCHED_KEY = "g1-planner:sched-open";
+  var SCHED = [
+    { d:"2026-11-16", t:"대학 탐방", n:"하루 학교 밖 일정 — 저녁 공부는 가볍게", k:"school" },
+    { d:"2026-11-18", t:"수능예비소집일", n:"6교시 · 30분 수업이라 일찍 끝나요", k:"exam" },
+    { d:"2026-11-19", t:"수능", n:"수능일", k:"exam" },
+    { d:"2026-11-20", t:"재량휴업일", n:"휴교 — 집에서 타이머 2세트", k:"off" },
+    { d:"2026-11-24", t:"3학년 진로체험활동", n:"학교 행사", k:"school" },
+    { d:"2026-11-26", t:"금요일 수업", n:"목요일인데 금요일 시간표로 수업", k:"swap" },
+    { d:"2026-11-30", t:"연극 관람", n:"학교 행사", k:"school" },
+    { d:"2026-12-03", e:"2026-12-07", t:"일반고·국제고·자사고·외고 원서접수",
+      n:"지원 학교 포함 · 서류·면접 일정은 학교별 공고 확인 / 특성화고는 특별 11/23~24, 일반 11/30~12/1", k:"apply" },
+    { d:"2026-12-23", t:"금요일 수업", n:"수요일인데 금요일 시간표로 수업", k:"swap" },
+    { d:"2026-12-24", t:"학생회장선거", n:"학교 행사", k:"school" },
+    { d:"2027-01-05", t:"금요일 수업", n:"화요일인데 금요일 시간표로 수업", k:"swap" },
+    { d:"2027-01-08", t:"졸업식", n:"윈터스쿨(1/1~2/6) 기간 중 → 외출·복귀 일정 미리 협의", k:"grad" }
+  ];
 
   /* ---- 요일별 기본 학습 항목 ---- */
   function mk(id, emoji, title, note, mins){
@@ -872,6 +947,109 @@
     if (it.id === "english") return "문법 1파트 + 고1 모고 독해 3~4지문, 시간 재면서";
     if (it.id === "history") return "주 1회 한국사 — 1단원 흐름만 잡기";
     return "";
+  }
+
+  /* ================= 중3 전환기·고입 일정 ================= */
+  var schedOpen = (lsGet(SCHED_KEY) === "1");
+
+  function schedEnd(ev){ return ev.e || ev.d; }
+  function schedState(ev){
+    var t = todayKey();
+    if (t >= ev.d && t <= schedEnd(ev)) return "today";
+    return ev.d > t ? "next" : "past";
+  }
+  function schedDDay(ev){ return Math.round((parseKey(ev.d) - parseKey(todayKey())) / 86400000); }
+  function schedDateHTML(ev){
+    if (ev.e){
+      var a = parseKey(ev.d), b = parseKey(ev.e);
+      return mmdd(ev.d) + "~" + mmdd(ev.e) + " <i>" + DOW[a.getDay()] + "~" + DOW[b.getDay()] + "</i>";
+    }
+    return mmdd(ev.d) + " <i>" + DOW[dowOf(ev.d)] + "</i>";
+  }
+  function schedTag(ev){
+    var st = schedState(ev);
+    if (st === "today") return "오늘";
+    if (st === "next") return "D-" + schedDDay(ev);
+    return "지남";
+  }
+  function renderSched(){
+    var head = $("evHead");
+    if (!head) return;
+    var todayEvs = [], nextEv = null;
+    SCHED.forEach(function(ev){
+      var st = schedState(ev);
+      if (st === "today") todayEvs.push(ev);
+      else if (st === "next" && !nextEv) nextEv = ev;
+    });
+
+    var now = $("evNow");
+    now.innerHTML = "";
+    if (todayEvs.length){
+      var w = document.createElement("span"); w.className = "ev-when"; w.textContent = "오늘 · ";
+      var t = document.createElement("span"); t.className = "ev-t";
+      t.textContent = todayEvs.map(function(ev){ return ev.t; }).join(" / ");
+      var dd = document.createElement("span");
+      dd.className = "dday" + (todayEvs.some(function(ev){ return ev.k === "off"; }) ? " rest" : "");
+      dd.textContent = "D-DAY";
+      now.appendChild(w); now.appendChild(t); now.appendChild(dd);
+    } else if (nextEv){
+      var w2 = document.createElement("span"); w2.className = "ev-when"; w2.textContent = "다음 · ";
+      var t2 = document.createElement("span"); t2.className = "ev-t";
+      t2.textContent = mmdd(nextEv.d) + "(" + DOW[dowOf(nextEv.d)] + ") " + nextEv.t;
+      var dd2 = document.createElement("span"); dd2.className = "dday";
+      dd2.textContent = "D-" + schedDDay(nextEv);
+      now.appendChild(w2); now.appendChild(t2); now.appendChild(dd2);
+    } else {
+      now.textContent = "예정된 주요 일정이 없어요";
+    }
+
+    $("evToggle").textContent = schedOpen ? "접기 ▴" : "전체 보기 ▾";
+    head.setAttribute("aria-expanded", schedOpen ? "true" : "false");
+    var body = $("evBody");
+    body.hidden = !schedOpen;
+    if (!schedOpen) return;
+
+    body.innerHTML = "";
+    var curMonth = "";
+    SCHED.forEach(function(ev){
+      var st = schedState(ev);
+      var d0 = parseKey(ev.d);
+      var mLabel = d0.getFullYear() + "년 " + (d0.getMonth() + 1) + "월";
+      if (mLabel !== curMonth){
+        curMonth = mLabel;
+        var mh = document.createElement("div");
+        mh.className = "ev-month"; mh.textContent = mLabel;
+        body.appendChild(mh);
+      }
+      var row = document.createElement("div");
+      row.className = "ev-row " + (ev.k || "school") + (st === "today" ? " today" : "") + (st === "past" ? " past" : "");
+      var dd = document.createElement("div");
+      dd.className = "ev-d";
+      dd.innerHTML = schedDateHTML(ev);
+      var bb = document.createElement("div");
+      bb.className = "ev-b";
+      var bt = document.createElement("b"); bt.textContent = ev.t; bb.appendChild(bt);
+      if (ev.n){
+        var ns = document.createElement("span"); ns.textContent = ev.n; bb.appendChild(ns);
+      }
+      var tg = document.createElement("span");
+      tg.className = "ev-tag"; tg.textContent = schedTag(ev);
+      row.appendChild(dd); row.appendChild(bb); row.appendChild(tg);
+      body.appendChild(row);
+    });
+    var foot = document.createElement("p");
+    foot.className = "ev-foot";
+    foot.textContent = "11/16 가정통신문 기준 · 학사일정이 바뀌면 알려 주세요.";
+    body.appendChild(foot);
+  }
+  function bindSched(){
+    var head = $("evHead");
+    if (!head) return;
+    head.addEventListener("click", function(){
+      schedOpen = !schedOpen;
+      lsSet(SCHED_KEY, schedOpen ? "1" : "0");
+      renderSched();
+    });
   }
 
   /* ================= header ================= */
@@ -2064,6 +2242,7 @@
     renderDayBar();
     renderHeader();
     renderSchedule();
+    renderSched();
     if (!(preserveTyping && editing)) renderList();
     renderFeedback();
     renderRoadmap();
@@ -2123,6 +2302,7 @@
     initFromHash();
     bindHashChange();
     bindTabs();
+    bindSched();
     bindTimer();
     bindFeedback();
     bindUI();
