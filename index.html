@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ko" data-app-ver="2026-11-16-v8">
+<html lang="ko" data-app-ver="2026-11-22-v9">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -103,6 +103,26 @@
   .dchip.on{background:#fff;color:#B4695A;box-shadow:0 1px 5px rgba(150,110,80,.13);}
   .dchip.all{flex:0 0 46px;}
   .dchip.all .dl{font-size:12px;}
+  .dchip .db.date{color:#BCAB9C;font-weight:700;letter-spacing:0;}
+
+  /* ---------- week nav ---------- */
+  .weeknav{display:flex;align-items:center;gap:6px;margin:0 0 8px;}
+  .wn-btn{
+    flex:0 0 auto;display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line2);background:#fff;
+    color:#8B6A56;font-family:inherit;font-weight:800;font-size:11.5px;border-radius:999px;
+    padding:5px 10px;cursor:pointer;box-shadow:var(--shadow);line-height:1.4;min-height:32px;
+  }
+  .wn-btn:active{transform:translateY(1px);}
+  .wn-mid{
+    flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:1px;border:0;
+    background:transparent;font-family:inherit;cursor:pointer;padding:2px 4px;
+  }
+  .wn-mid b{font-size:13px;font-weight:800;color:#5A4A3E;letter-spacing:-.01em;}
+  .wn-tag{
+    font-size:10.5px;font-weight:800;color:#B4695A;background:var(--coral-soft);border-radius:999px;
+    padding:1px 8px;line-height:1.55;
+  }
+  .wn-tag.back{color:#3E7A5C;background:var(--mint-soft);}
 
   /* ---------- week overview ---------- */
   .wk{margin-bottom:13px;}
@@ -430,7 +450,7 @@
     </div>
     <div class="stat-grid">
       <div class="stat"><b id="todayRate">0%</b><span>오늘 달성</span></div>
-      <div class="stat"><b id="weekRate">0%</b><span>이번 주 달성률</span></div>
+      <div class="stat"><b id="weekRate">0%</b><span id="weekRateLabel">이번 주 달성률</span></div>
       <div class="stat"><b id="streak">0일</b><span>연속 기록</span></div>
     </div>
   </header>
@@ -446,6 +466,16 @@
   <main>
   <!-- ======= TODAY ======= -->
   <section id="tab-today">
+
+    <!-- 주 이동 -->
+    <div class="weeknav" id="weeknav">
+      <button class="wn-btn" id="wkPrev" type="button" aria-label="지난주 보기"><span aria-hidden="true">◀</span> <span id="wkPrevT">지난주</span></button>
+      <button class="wn-mid" id="wkNow" type="button" aria-label="이번 주로 돌아가기">
+        <b id="wkRange">—</b>
+        <span class="wn-tag" id="wkTag">이번 주</span>
+      </button>
+      <button class="wn-btn" id="wkNext" type="button" aria-label="다음 주 보기"><span id="wkNextT">다음주</span> <span aria-hidden="true">▶</span></button>
+    </div>
 
     <!-- weekday chips : 기본은 오늘 요일 -->
     <div class="daybar" id="daybar" role="tablist" aria-label="요일 선택"></div>
@@ -744,11 +774,27 @@
     var d = parseKey(k);
     return d.getFullYear()+"년 "+(d.getMonth()+1)+"월 "+d.getDate()+"일 ("+DOW[d.getDay()]+")";
   }
-  // 그 요일이 다음으로 오는 날 (오늘이 그 요일이면 오늘)
+  // 주는 월요일 시작. 화면의 요일 칩은 지금 보고 있는 주(weekOffset) 안의 그 요일을 연다.
+  function mondayOf(d){
+    var x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    return addDays(x, -((x.getDay() + 6) % 7));
+  }
+  function weekStartDate(off){
+    return addDays(mondayOf(new Date()), (off || 0) * 7);
+  }
   function dateForDow(dow){
-    var n = new Date();
-    var t0 = new Date(n.getFullYear(), n.getMonth(), n.getDate());
-    return dateKey(addDays(t0, (+dow - t0.getDay() + 7) % 7));
+    return dateKey(addDays(weekStartDate(weekOffset), (+dow + 6) % 7));
+  }
+  function weekRangeText(off){
+    var s = weekStartDate(off), e = addDays(s, 6);
+    return (s.getMonth()+1) + "/" + s.getDate() + " ~ " + (e.getMonth()+1) + "/" + e.getDate();
+  }
+  function weekTagText(off){
+    off = off || 0;
+    if (off === 0) return "이번 주";
+    if (off === -1) return "지난주";
+    if (off === 1) return "다음 주";
+    return (off < 0 ? (-off) + "주 전" : off + "주 뒤");
   }
   function uid(){ return "c"+Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
   function clamp(n,a,b){ return Math.max(a, Math.min(b,n)); }
@@ -790,8 +836,29 @@
   var store = loadStore();
   var planSnap = JSON.stringify(store.plan);
   var roadmapSnap = JSON.stringify(store.roadmap);
+
+  /* ---- 요일 계산 버그로 다음 주에 복사된 체크 청소 ----
+     2026-11-22 이전에 만들어진 2026-11-23~11-27 기록은 예전 dateForDow()가 '다음 주 같은 요일'로
+     넘겨 버려 생긴 빈 기록이다(엄마 한마디·세트 없음). 그 주에 실제로 남긴 기록은 건드리지 않는다. */
+  var BOGUS_FROM = "2026-11-23", BOGUS_TO = "2026-11-27";
+  var BOGUS_CUT = new Date(2026, 10, 22).getTime();   // 2026-11-22 00:00
+  function dropBogusNextWeek(){
+    var changed = false;
+    Object.keys(store.days || {}).forEach(function(k){
+      if (k < BOGUS_FROM || k > BOGUS_TO) return;
+      var r = store.days[k];
+      if (!r) return;
+      if ((+r.updated || 0) >= BOGUS_CUT) return;                 // 그 주에 실제로 남긴 기록
+      if ((r.kid || "").trim() || (r.mom || "").trim()) return;   // 한마디가 있으면 보존
+      if (+r.sets > 0) return;
+      delete store.days[k];
+      changed = true;
+    });
+    return changed;
+  }
   var viewSel = todayDow();     // 0~6 또는 "all"
   var viewDate = todayKey();    // 지금 보고 있는 날짜
+  var weekOffset = 0;           // 지금 보고 있는 주 (0 = 이번 주 월~일, -1 = 지난주)
   var editing = null;           // { id, date } 편집 중인 항목
   var actualEdit = null;        // { id, date } 실제 걸린 시간 입력 중인 항목
   var addDaysSel = null;        // 추가할 요일 선택
@@ -1121,7 +1188,8 @@
   /* ================= header ================= */
   function renderHeader(){
     var isToday = viewDate === todayKey();
-    $("todayLabel").textContent = prettyDate(viewDate) + (isToday ? " · 오늘" : "");
+    if (viewSel === "all") $("todayLabel").textContent = weekRangeText(weekOffset) + " 한 주";
+    else $("todayLabel").textContent = prettyDate(viewDate) + (isToday ? " · 오늘" : "");
 
     var now = new Date();
     var t0 = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -1139,16 +1207,19 @@
     var tDone = countDone(todayKey(), td), tLen = planLen(td);
     $("todayRate").textContent = tLen ? Math.round(tDone/tLen*100) + "%" : "0%";
 
-    // 이번 주(최근 7일) — 기록이 있는 날 기준
+    // 선택한 주(월~일) 달성률 — 기록이 있는 날 기준
+    var ws = weekStartDate(weekOffset);
     var sumDone=0, sumTotal=0;
     for (var i=0;i<7;i++){
-      var kk = dateKey(addDays(new Date(), -i));
+      var wd = addDays(ws, i);
+      var kk = dateKey(wd);
       if (!store.days[kk]) continue;
-      var dow = dowOf(kk), len = planLen(dow);
+      var dow = wd.getDay(), len = planLen(dow);
       if (!len) continue;
       sumTotal += len; sumDone += countDone(kk, dow);
     }
     $("weekRate").textContent = sumTotal ? Math.round(sumDone/sumTotal*100) + "%" : "0%";
+    $("weekRateLabel").textContent = weekTagText(weekOffset) + " 달성률";
 
     // 연속 기록 (오늘 또는 어제부터 거슬러)
     var streak = 0, cur = new Date();
@@ -1160,26 +1231,48 @@
   /* ================= weekday chips ================= */
   function setSel(sel){
     viewSel = sel;
-    viewDate = (sel === "all") ? todayKey() : dateForDow(+sel);
+    viewDate = (sel === "all") ? dateForDow(todayDow()) : dateForDow(+sel);
     editing = null;
     actualEdit = null;
     addDaysSel = (sel === "all") ? null : [+sel];
     renderAll();
   }
+  function setWeek(off){
+    weekOffset = off;
+    if (viewSel !== "all") viewDate = dateForDow(+viewSel);
+    editing = null;
+    actualEdit = null;
+    renderAll();
+    toast(weekTagText(weekOffset) + " · " + weekRangeText(weekOffset));
+  }
+  function renderWeekNav(){
+    var cur = weekOffset === 0;
+    $("wkRange").textContent = weekRangeText(weekOffset);
+    var tag = $("wkTag");
+    tag.textContent = cur ? "이번 주" : "이번 주로";
+    tag.className = "wn-tag" + (cur ? "" : " back");
+    $("wkPrevT").textContent = cur ? "지난주" : "이전 주";
+    $("wkNextT").textContent = cur ? "다음주" : "다음 주";
+    $("wkNow").setAttribute("aria-label", cur ? "이번 주 (" + weekRangeText(0) + ")" : "이번 주로 돌아가기 (" + weekRangeText(0) + ")");
+    $("wkPrev").setAttribute("aria-label", weekTagText(weekOffset-1) + " 보기 (" + weekRangeText(weekOffset-1) + ")");
+    $("wkNext").setAttribute("aria-label", weekTagText(weekOffset+1) + " 보기 (" + weekRangeText(weekOffset+1) + ")");
+  }
   function renderDayBar(){
     var box = $("daybar");
     box.innerHTML = "";
-    var td = todayDow();
     DAY_ORDER.forEach(function(dow){
+      var dk = dateForDow(dow);
+      var isTodayDate = (dk === todayKey());
       var on = (viewSel !== "all" && +viewSel === dow);
       var b = document.createElement("button");
       b.type = "button";
-      b.className = "dchip" + (on ? " on" : "");
+      b.className = "dchip" + (on ? " on" : "") + (isTodayDate ? " is-today" : "");
       b.setAttribute("role","tab");
       b.setAttribute("aria-selected", on ? "true" : "false");
-      b.setAttribute("aria-label", DOW[dow] + "요일" + (dow === td ? " (오늘)" : ""));
+      b.setAttribute("aria-label", DOW[dow] + "요일 " + mmdd(dk) + " 기록 보기" + (isTodayDate ? " (오늘)" : ""));
       var l = document.createElement("span"); l.className = "dl"; l.textContent = DOW[dow];
-      var db = document.createElement("span"); db.className = "db"; db.textContent = (dow === td) ? "오늘" : "";
+      var db = document.createElement("span"); db.className = "db" + (isTodayDate ? "" : " date");
+      db.textContent = isTodayDate ? "오늘" : mmdd(dk);
       b.appendChild(l); b.appendChild(db);
       b.addEventListener("click", function(){ setSel(dow); });
       box.appendChild(b);
@@ -1189,7 +1282,7 @@
     all.className = "dchip all" + (viewSel === "all" ? " on" : "");
     all.setAttribute("role","tab");
     all.setAttribute("aria-selected", viewSel === "all" ? "true" : "false");
-    all.setAttribute("aria-label","이번 주 전체 보기");
+    all.setAttribute("aria-label", weekTagText(weekOffset) + " 요일별 전체 보기");
     var al = document.createElement("span"); al.className = "dl"; al.textContent = "전체";
     var ab = document.createElement("span"); ab.className = "db"; ab.textContent = "";
     all.appendChild(al); all.appendChild(ab);
@@ -1219,7 +1312,7 @@
     var isToday = viewDate === todayKey();
     var doneN = countDone(viewDate, dow);
 
-    $("listTitle").textContent = isToday ? "오늘의 학습 체크리스트" : (DOW[dow] + "요일 학습 체크리스트");
+    $("listTitle").textContent = isToday ? "오늘의 학습 체크리스트" : (mmdd(viewDate) + " (" + DOW[dow] + ") 학습 체크리스트");
     $("listSummary").textContent = doneN + "/" + items.length;
     $("dayBarFill").style.width = (items.length ? Math.round(doneN/items.length*100) : 0) + "%";
 
@@ -1280,7 +1373,7 @@
       host.appendChild(box);
     });
 
-    $("listTitle").textContent = "이번 주 요일별 계획";
+    $("listTitle").textContent = weekTagText(weekOffset) + " 요일별 계획";
     $("listSummary").textContent = totalDone + "/" + totalLen;
   }
 
@@ -2359,6 +2452,7 @@
     if (p.d){
       viewDate = p.d;
       viewSel = dowOf(p.d);
+      weekOffset = Math.round((mondayOf(parseKey(p.d)) - mondayOf(new Date())) / 604800000);
       editing = null;
     }
     if (res === "stale"){
@@ -2488,10 +2582,11 @@
           return;
         }
         var before = JSON.stringify(snapshot());
-        mergeRemote(res.state);
+        var cleaned = mergeRemote(res.state);
         syncServerAt = +res.updatedAt || syncServerAt;
         var after = JSON.stringify(snapshot());
         if (after !== before) renderAll(true);
+        if (cleaned){ syncDirty = true; pushState(true); return; }
         // 서버에 이미 내가 올린 내용이 그대로 있으면 '저장됨'으로 본다
         if (syncDirty && JSON.stringify(res.state) === after){
           syncDirty = false;
@@ -2546,9 +2641,11 @@
       store.roadmapTs = rRt;
     }
     // 병합 결과는 저장만 하고 '새 변경'으로 치지 않는다 (계획 시각도 그대로 둔다)
+    var cleaned = dropBogusNextWeek();
     persistStore();
     planSnap = JSON.stringify(store.plan);
     roadmapSnap = JSON.stringify(store.roadmap);
+    return cleaned;
   }
 
   function bootSync(){
@@ -2597,6 +2694,7 @@
 
   /* ================= render all ================= */
   function renderAll(preserveTyping){
+    renderWeekNav();
     renderDayBar();
     renderHeader();
     renderSchedule();
@@ -2636,6 +2734,9 @@
   }
 
   function bindUI(){
+    $("wkPrev").addEventListener("click", function(){ setWeek(weekOffset - 1); });
+    $("wkNext").addEventListener("click", function(){ setWeek(weekOffset + 1); });
+    $("wkNow").addEventListener("click", function(){ if (weekOffset !== 0) setWeek(0); });
     Array.prototype.forEach.call(document.querySelectorAll("#addMinChips .minchip"), function(b){
       b.addEventListener("click", function(){
         var cur = parseInt($("addMins").value, 10) || 0;
@@ -2671,6 +2772,7 @@
     bindFeedback();
     bindUI();
     paintSound();
+    if (dropBogusNextWeek()) persistStore();
     renderAll();
     paintAddMinChips();
     bindSync();
