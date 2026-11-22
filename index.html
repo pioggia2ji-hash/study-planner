@@ -469,12 +469,12 @@
 
     <!-- 주 이동 -->
     <div class="weeknav" id="weeknav">
-      <button class="wn-btn" id="wkPrev" type="button" aria-label="지난주 보기"><span aria-hidden="true">◀</span> 지난주</button>
+      <button class="wn-btn" id="wkPrev" type="button" aria-label="지난주 보기"><span aria-hidden="true">◀</span> <span id="wkPrevT">지난주</span></button>
       <button class="wn-mid" id="wkNow" type="button" aria-label="이번 주로 돌아가기">
         <b id="wkRange">—</b>
         <span class="wn-tag" id="wkTag">이번 주</span>
       </button>
-      <button class="wn-btn" id="wkNext" type="button" aria-label="다음 주 보기">다음주 <span aria-hidden="true">▶</span></button>
+      <button class="wn-btn" id="wkNext" type="button" aria-label="다음 주 보기"><span id="wkNextT">다음주</span> <span aria-hidden="true">▶</span></button>
     </div>
 
     <!-- weekday chips : 기본은 오늘 요일 -->
@@ -1251,6 +1251,8 @@
     var tag = $("wkTag");
     tag.textContent = cur ? "이번 주" : "이번 주로";
     tag.className = "wn-tag" + (cur ? "" : " back");
+    $("wkPrevT").textContent = cur ? "지난주" : "이전 주";
+    $("wkNextT").textContent = cur ? "다음주" : "다음 주";
     $("wkNow").setAttribute("aria-label", cur ? "이번 주 (" + weekRangeText(0) + ")" : "이번 주로 돌아가기 (" + weekRangeText(0) + ")");
     $("wkPrev").setAttribute("aria-label", weekTagText(weekOffset-1) + " 보기 (" + weekRangeText(weekOffset-1) + ")");
     $("wkNext").setAttribute("aria-label", weekTagText(weekOffset+1) + " 보기 (" + weekRangeText(weekOffset+1) + ")");
@@ -1280,7 +1282,7 @@
     all.className = "dchip all" + (viewSel === "all" ? " on" : "");
     all.setAttribute("role","tab");
     all.setAttribute("aria-selected", viewSel === "all" ? "true" : "false");
-    all.setAttribute("aria-label","이번 주 전체 보기");
+    all.setAttribute("aria-label", weekTagText(weekOffset) + " 요일별 전체 보기");
     var al = document.createElement("span"); al.className = "dl"; al.textContent = "전체";
     var ab = document.createElement("span"); ab.className = "db"; ab.textContent = "";
     all.appendChild(al); all.appendChild(ab);
