@@ -61,11 +61,17 @@
 
 이 저장소는 GitHub Pages를 **`gh-pages` 브랜치 루트**에서 배포합니다. (Pages 소스 설정은 저장소 Settings → Pages에서 확인)
 고칠 때는 `main`에 커밋한 뒤 **두 브랜치 모두**에 push해야 사이트에 반영됩니다.
+`gh-pages`는 main과 커밋 이력이 따로 있어 `git push origin main:gh-pages`는 거부됩니다(behind remote). 아래처럼 `gh-pages`를 받아서 같은 내용을 커밋합니다.
 
 ```
 git add -A && git commit -m "수정 내용"
 git push origin main
-git push origin main:gh-pages   # 이 줄이 있어야 사이트가 갱신됩니다
+
+git checkout -B gh-pages origin/gh-pages   # 배포 브랜치 받기
+git checkout main -- index.html README.md .nojekyll   # main 내용 그대로 올리기
+git commit -m "수정 내용"
+git push origin gh-pages
+git checkout main
 ```
 
 - 한 파일 앱이라 서버·빌드 과정이 없습니다. push 후 30초~1분이면 반영됩니다.
