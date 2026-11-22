@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ko" data-app-ver="2026-11-22-v9">
+<html lang="ko" data-app-ver="2026-11-22-v10">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -319,6 +319,16 @@
   .sch-b b{font-weight:800;}
   .sch-t{color:#8A7566;font-weight:700;font-variant-numeric:tabular-nums;}
   .sch-now{flex:none;font-size:10.5px;font-weight:800;color:#B4695A;background:#fff;border-radius:999px;padding:2px 8px;}
+  /* 학원 일정 카드 접기/펼치기 (헤더 전체가 버튼) */
+  .ac-head{
+    width:100%;background:none;border:0;color:inherit;font-family:inherit;
+    padding:6px 0 10px;margin:-6px 0 2px;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent;
+  }
+  .ac-head .card-t{flex:1;min-width:0;}
+  .ac-head .card-sub{flex:none;}
+  .ac-head:active .card-t{color:#B4695A;}
+  .ac-arrow{flex:none;width:14px;font-size:12px;font-weight:800;color:var(--ink-soft);text-align:center;line-height:1;}
+  .ac-card.collapsed .card-h{margin-bottom:-10px;}
   .it-tools{display:flex;flex-direction:column;gap:4px;flex:none;}
   .tool{
     width:30px;height:28px;border:0;background:transparent;color:#BBA897;font-size:13px;
@@ -490,14 +500,17 @@
       <div class="ev-body" id="evBody" hidden></div>
     </div>
 
-    <!-- academy schedule -->
-    <div class="card">
-      <div class="card-h">
-        <div class="card-t"><span class="ico">🏫</span>이번 주 학원 일정</div>
+    <!-- academy schedule (헤더를 누르면 접기/펼치기) -->
+    <div class="card ac-card" id="acCard">
+      <button class="card-h ac-head" id="acHead" type="button" aria-expanded="true" aria-controls="acBody">
+        <span class="card-t"><span class="ico" aria-hidden="true">🏫</span>이번 주 학원 일정</span>
         <span class="card-sub" id="schSub">—</span>
+        <span class="ac-arrow" id="acArrow" aria-hidden="true">▴</span>
+      </button>
+      <div class="ac-body" id="acBody">
+        <div class="sch" id="schRows"></div>
+        <p class="hint" style="margin:9px 0 0;">위에서 요일을 고르면 <b>그 요일에 해야 할 공부만</b> 보여요. 학원 가는 날(화·목·토)은 <b>학원 숙제·오답 정리</b> 위주로, 학원 없는 날은 <b>복습</b>으로 채워요.</p>
       </div>
-      <div class="sch" id="schRows"></div>
-      <p class="hint" style="margin:9px 0 0;">위에서 요일을 고르면 <b>그 요일에 해야 할 공부만</b> 보여요. 학원 가는 날(화·목·토)은 <b>학원 숙제·오답 정리</b> 위주로, 학원 없는 날은 <b>복습</b>으로 채워요.</p>
     </div>
 
     <!-- checklist -->
@@ -680,6 +693,10 @@
     6: [{ s:"수학", a:"12:00", b:"15:00" }, { s:"국어", a:"15:00", b:"17:00" }],
     0: [{ s:"국어", a:"12:00", b:"14:00" }]
   };
+
+  // 학원 일정 카드 접힘 상태 — 기기에 기억, 기본은 펼침
+  var AC_KEY = "g1-planner:academy-open";
+  var acOpen = (lsGet(AC_KEY) !== "0");
 
   /* ---- 중3 전환기·고입 주요 일정 (2026-11-16 가정통신문 기준) ----
      화면은 공개 페이지라 학교명·이름은 넣지 않고 일정만 적는다. */
@@ -1071,6 +1088,26 @@
 
     $("schSub").textContent = (isToday ? "오늘은 " : DOW[selDow] + "요일은 ") +
       (ACADEMY[selDow] ? "학원 가는 날" : "학원 없는 날");
+
+    applyAcState();
+  }
+  // 접힘/펼침을 화면(버튼 상태·화살표·본문·카드 여백)에 반영
+  function applyAcState(){
+    var head = $("acHead"), body = $("acBody"), card = $("acCard"), arrow = $("acArrow");
+    if (!head || !body) return;
+    head.setAttribute("aria-expanded", acOpen ? "true" : "false");
+    if (arrow) arrow.textContent = acOpen ? "▴" : "▾";
+    body.hidden = !acOpen;
+    if (card) card.classList.toggle("collapsed", !acOpen);
+  }
+  function bindAc(){
+    var head = $("acHead");
+    if (!head) return;
+    head.addEventListener("click", function(){
+      acOpen = !acOpen;
+      lsSet(AC_KEY, acOpen ? "1" : "0");
+      applyAcState();
+    });
   }
   function todayHint(it, dow){
     var list = ACADEMY[dow] || [];
@@ -2768,6 +2805,7 @@
     bindHashChange();
     bindTabs();
     bindSched();
+    bindAc();
     bindTimer();
     bindFeedback();
     bindUI();
