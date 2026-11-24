@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>삼송 3학년 리코더 작은 연주회</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #f1f6f0; color: #20342e; font: 17px/1.55 system-ui, sans-serif; }
+    main { max-width: 720px; margin: auto; padding: 32px 18px 48px; }
+    header { background: #215747; color: white; border-radius: 24px 24px 4px 4px; padding: 25px 24px; }
+    h1 { margin: 0; font-size: clamp(25px, 5vw, 38px); }
+    h2 { margin-top: 0; font-size: 24px; }
+    .panel { background: white; padding: 24px; border-radius: 4px 4px 24px 24px; }
+    .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    label { display: block; margin-bottom: 16px; font-weight: 700; min-width: 0; }
+    input, select, textarea, button {
+      width: 100%; min-height: 48px; border-radius: 10px; padding: 8px 12px; font: inherit;
+    }
+    input, select, textarea {
+      display: block; border: 1px solid #7b9286; margin-top: 5px; background: #fcfdfa; color: inherit;
+    }
+    textarea { resize: vertical; }
+    button { background: #215747; color: white; border: 0; cursor: pointer; font-weight: 700; }
+    button:disabled { opacity: .65; cursor: wait; }
+    :focus-visible { outline: 3px solid #ac5518; outline-offset: 3px; }
+    .hint, .song { color: #455e54; }
+    .hint { margin-top: 0; }
+    #message:empty { margin: 0; }
+    .error { color: #9a301d; }
+    #reload { margin-bottom: 16px; }
+    ol { list-style: none; padding: 0; margin: 0; }
+    li {
+      border-top: 1px solid #ccdbd2; padding: 14px 0; display: grid;
+      grid-template-columns: 44px minmax(0, 1fr); gap: 10px; overflow-wrap: anywhere;
+    }
+    .number { align-self: start; background: #e0eee5; border-radius: 8px; text-align: center; font-weight: 800; }
+    .song { display: block; }
+    .intro { margin: 8px 0 0; padding-left: 10px; border-left: 3px solid #8db4a1; }
+  </style>
+</head>
+<body>
+  <main>
+    <header><h1>삼송 3학년 리코더 작은 연주회</h1></header>
+    <section class="panel">
+      <p id="message" role="status" aria-live="polite">접수 상태를 확인하고 있어요.</p>
+      <button id="reload" type="button" hidden>연주회 화면 다시 확인</button>
+
+      <form id="application" hidden>
+        <h2>우리 팀 신청하기</h2>
+        <p class="hint">팀 대표가 한 번만 신청해요. 팀원 이름에는 대표도 포함해요.</p>
+        <div class="pair">
+          <label>학급
+            <select name="classroom" required><option value="">반 고르기</option></select>
+          </label>
+          <label>대표 번호
+            <input name="representative" type="number" inputmode="numeric" min="1" max="99" required>
+          </label>
+        </div>
+        <label>팀명
+          <input name="team" maxlength="30" required placeholder="예: 도레미 탐험대">
+        </label>
+        <label>팀원 이름
+          <input name="size" maxlength="200" required placeholder="예: 김다함, 이삼송, 박사랑">
+        </label>
+        <label>연주곡
+          <input name="song" maxlength="60" required placeholder="예: 작은 별">
+        </label>
+        <label>준비 요청사항 (선택)
+          <textarea name="request" maxlength="200" rows="2" placeholder="예: 보면대 1개가 필요해요."></textarea>
+        </label>
+        <label>우리 팀 연주 소개 한마디 (선택)
+          <textarea name="intro" maxlength="100" rows="2" aria-describedby="intro-hint"
+            placeholder="예: 마지막 음을 동시에 끝내는지 귀 기울여 들어 주세요!"></textarea>
+        </label>
+        <p class="hint" id="intro-hint">곡을 고른 이유나 친구들이 귀 기울여 들을 부분을 써 주세요. 순서표에 나오는 문장이니 이름은 빼 주세요.</p>
+        <button id="submit" type="submit">우리 팀 신청하기</button>
+      </form>
+
+      <section id="program" hidden>
+        <h2>연주 순서</h2>
+        <ol id="list" aria-label="연주 순서"></ol>
+      </section>
+    </section>
+  </main>
+
+  <script>
+    const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyEkkbs9es9scQquex8q1LV8968bkAs51Rw6e4arRJH1qvmnfdT4SL5awK_nmrr_LdV9w/exec';
+
+    const form = document.querySelector('#application');
+    const select = form.elements.classroom;
+    const message = document.querySelector('#message');
+    const button = document.querySelector('#submit');
+    const reload = document.querySelector('#reload');
+    const program = document.querySelector('#program');
+    const list = document.querySelector('#list');
+
+    function status(text, error = false) {
+      message.textContent = text;
+      message.classList.toggle('error', error);
+    }
+
+    function showState(state) {
+      status('');
+      reload.hidden = true;
+      form.hidden = state.closed;
+      program.hidden = !state.closed;
+
+      if (state.closed) {
+        list.replaceChildren();
+        for (const team of state.program) {
+          const item = document.createElement('li');
+          const number = document.createElement('span');
+          number.className = 'number';
+          number.textContent = team.order;
+
+          const detail = document.createElement('div');
+          const title = document.createElement('strong');
+          title.textContent = team.classroom + '반 · ' + team.team;
+
+          const song = document.createElement('span');
+          song.className = 'song';
+          song.textContent = team.song + ' · ' + team.size + '명';
+          detail.append(title, song);
+
+          if (team.intro) {
+            const intro = document.createElement('p');
+            intro.className = 'intro';
+            intro.textContent = '“' + team.intro + '”';
+            detail.append(intro);
+          }
+
+          item.append(number, detail);
+          list.append(item);
+        }
+        return;
+      }
+
+      if (select.options.length === 1) {
+        for (let classroom = 1; classroom <= state.classes; classroom++) {
+          select.add(new Option('3학년 ' + classroom + '반', classroom));
+        }
+      }
+    }
+
+    function showError(error) {
+      status(error.message || '잠시 뒤 다시 확인해 주세요.', true);
+      reload.hidden = false;
+    }
+
+    function readJson(response) {
+      if (!response.ok) throw new Error('잠시 뒤 다시 확인해 주세요.');
+      return response.json().catch(() => {
+        throw new Error('잠시 뒤 다시 확인해 주세요.');
+      });
+    }
+
+    function load() {
+      reload.hidden = true;
+      status('접수 상태를 확인하고 있어요.');
+      fetch(APPS_SCRIPT_URL + '?action=state', { credentials: 'omit', cache: 'no-store' })
+        .then(readJson)
+        .then(state => {
+          if (state && state.ok === false) throw new Error(state.error || '접수 상태를 확인하지 못했어요.');
+          showState(state);
+        })
+        .catch(showError);
+    }
+
+    form.addEventListener('submit', event => {
+      event.preventDefault();
+      button.disabled = true;
+      reload.hidden = true;
+      status('신청을 저장하고 있어요.');
+
+      fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        credentials: 'omit',
+        cache: 'no-store',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(Object.fromEntries(new FormData(form)))
+      })
+        .then(readJson)
+        .then(result => {
+          if (!result || result.ok !== true) {
+            throw new Error((result && result.error) || '신청을 저장하지 못했어요. 잠시 뒤 다시 확인해 주세요.');
+          }
+          form.reset();
+          form.hidden = true;
+          button.disabled = false;
+          status('신청이 끝났어요! 내용을 바꾸려면 선생님께 말씀드려 주세요.');
+          reload.hidden = false;
+        })
+        .catch(error => {
+          button.disabled = false;
+          showError(error);
+        });
+    });
+
+    reload.addEventListener('click', load);
+    load();
+  </script>
+</body>
+</html>
